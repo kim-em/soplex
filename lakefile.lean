@@ -63,16 +63,19 @@ def soplexRuntimeLinkArgs : Array String :=
       "-lgmpxx", "-lgmp",
       "-lstdc++"]
   else
-    -- Lean's bundled clang on Linux defaults to `libc++` (matching the
-    -- macOS toolchain). We therefore link with `-lc++ -lc++abi` rather
-    -- than `-lstdc++`; the CI workflow installs the matching runtime
-    -- (`libc++1`, `libc++abi1`).
+    -- Linux is a tricky case: SoPlex is compiled by the system g++
+    -- (libstdc++), so the SoPlex objects pull in libstdc++ symbols.
+    -- Lean's bundled clang, however, links the resulting `.so` with a
+    -- `NEEDED libc++.so.1` entry (from its own runtime dependencies),
+    -- so libc++ must also be present at *load* time. We pass `-lstdc++`
+    -- to resolve SoPlex's C++ symbols at link time; the CI workflow
+    -- additionally installs `libc++1` so the load-time lookup succeeds.
     #["-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",
       "-L/usr/lib",
       "-lgmpxx", "-lgmp",
-      "-lc++", "-lc++abi", "-lm"]
+      "-lstdc++", "-lm"]
 
 package leanSoplex where
   moreLinkArgs := soplexRuntimeLinkArgs
