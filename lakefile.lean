@@ -63,12 +63,16 @@ def soplexRuntimeLinkArgs : Array String :=
       "-lgmpxx", "-lgmp",
       "-lstdc++"]
   else
+    -- Lean's bundled clang on Linux defaults to `libc++` (matching the
+    -- macOS toolchain). We therefore link with `-lc++ -lc++abi` rather
+    -- than `-lstdc++`; the CI workflow installs the matching runtime
+    -- (`libc++1`, `libc++abi1`).
     #["-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",
       "-L/usr/lib",
       "-lgmpxx", "-lgmp",
-      "-lstdc++", "-lm"]
+      "-lc++", "-lc++abi", "-lm"]
 
 package leanSoplex where
   moreLinkArgs := soplexRuntimeLinkArgs
