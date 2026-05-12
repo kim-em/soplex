@@ -218,9 +218,16 @@ def tInfeasibleRowsOnly : Outcome :=
     , colLower := #[0], colUpper := #[0] }
   expectTrue (checkInfeasible p d)
 
-/-- `min 0·x  s.t.  0 ≤ x ≤ -1` (validate would reject; this exercises
-    the four-vector Farkas form on the raw `Problem`). Farkas:
-    `zL = [1], zU = [1]`. Stationarity `zL − zU = 0`, bound combination
+/-- Raw Bool-checker stress test (the LP itself fails `validate` —
+    `0 ≤ x ≤ -1` is an inverted column bound, which `validate` rejects
+    as `boundInverted` long before the checker would run). Constructs
+    the four-vector Farkas form from PLAN.md §"Worked example" directly
+    against the unvalidated `Problem`, to pin the sign convention for
+    column-bounds-only infeasibility. In the `validate → solveExact →
+    checkInfeasible` pipeline this case never arises — infeasibility
+    that reaches the checker must include at least one row, since
+    `validate` rejects any inverted bound first. Farkas: `zL = [1],
+    zU = [1]`. Stationarity `zL − zU = 0`, bound combination
     `1·0 - 1·(-1) = 1 > 0`. -/
 def tInfeasibleColBoundsOnly : Outcome :=
   let p : Problem :=
@@ -302,6 +309,25 @@ def tRejectBadStationarity : Outcome :=
     , colLower := #[0], colUpper := #[0] }
   expectFalse (checkOptimal p x d)
 
+/-- Pins the four-vector ranged-row decomposition: same primal as
+    `tOptimalRangedRow` (`min x s.t. 1 ≤ x ≤ 3, 0 ≤ x ≤ 2`, x* = 1),
+    but with multipliers `yL = 2, yU = 1` (same signed dual `yL − yU =
+    1` so stationarity still passes) rather than `(1, 0)`. `dualObj =
+    2·1 − 1·3 = −1`, while `primalObj = 1`, so `checkOptimal` must
+    reject. Would not be caught if `dualObj` only consulted the signed
+    dual. -/
+def tRejectRangedRowDecomposition : Outcome :=
+  let p := mkProblem 1 1
+    (c := #[1])
+    (a := #[(0, 0, 1)])
+    (rowBounds := #[(some 1, some 3)])
+    (colBounds := #[(some 0, some 2)])
+  let x : Array Rat := #[1]
+  let d : DualBundle :=
+    { rowLower := #[2], rowUpper := #[1]
+    , colLower := #[0], colUpper := #[0] }
+  expectFalse (checkOptimal p x d)
+
 /-- `primalObj ≠ dualObj`: take a feasible primal and a feasible dual
     that disagree on the objective value. -/
 def tRejectObjectiveMismatch : Outcome :=
@@ -340,6 +366,72 @@ def tRejectUnboundedNonStrict : Outcome :=
     (a := #[])
     (rowBounds := #[])
     (colBounds := #[(some 0, none)])
+  let x : Array Rat := #[0]
+  let r : Array Rat := #[1]
+  expectFalse (checkUnbounded p x r)
+
+/-- Totality on malformed `Problem`: `colBounds.size ≠ numVars`.
+    Without the `problemShapeOk` guard the loop body would index
+    `p.colBounds[1]!` and panic. -/
+def tTotalityMalformedColBounds : Outcome :=
+  let p := mkProblem 2 0
+    (c := #[1, 1])
+    (a := #[])
+    (rowBounds := #[])
+    (colBounds := #[(none, none)])              -- size 1, numVars = 2
+  let x : Array Rat := #[0, 0]
+  let d : DualBundle :=
+    { rowLower := #[], rowUpper := #[]
+    , colLower := #[0, 0], colUpper := #[0, 0] }
+  expectFalse (checkOptimal p x d)
+
+/-- Totality on malformed `Problem`: `rowBounds.size ≠ numConstraints`. -/
+def tTotalityMalformedRowBounds : Outcome :=
+  let p := mkProblem 1 2
+    (c := #[1])
+    (a := #[])
+    (rowBounds := #[(none, none)])              -- size 1, numConstraints = 2
+    (colBounds := #[(none, none)])
+  let x : Array Rat := #[0]
+  let d : DualBundle :=
+    { rowLower := #[0, 0], rowUpper := #[0, 0]
+    , colLower := #[0], colUpper := #[0] }
+  expectFalse (checkOptimal p x d)
+
+/-- Totality on out-of-range sparse entry. Without the guard
+    `evalAx` / `evalATy` would silently drop the entry and verify a
+    *different* LP than the one declared. -/
+def tTotalitySparseOutOfRange : Outcome :=
+  let p := mkProblem 1 1
+    (c := #[1])
+    (a := #[(0, 5, 1)])                          -- col 5 ≥ numVars
+    (rowBounds := #[(some 0, some 0)])
+    (colBounds := #[(none, none)])
+  let x : Array Rat := #[0]
+  let d : DualBundle :=
+    { rowLower := #[0], rowUpper := #[0]
+    , colLower := #[0], colUpper := #[0] }
+  expectFalse (checkOptimal p x d)
+
+/-- Totality on `checkInfeasible` with malformed problem. -/
+def tTotalityInfeasibleMalformed : Outcome :=
+  let p := mkProblem 1 1
+    (c := #[1])
+    (a := #[])
+    (rowBounds := #[(none, none)])
+    (colBounds := #[])                          -- size 0, numVars = 1
+  let d : DualBundle :=
+    { rowLower := #[1], rowUpper := #[0]
+    , colLower := #[0], colUpper := #[0] }
+  expectFalse (checkInfeasible p d)
+
+/-- Totality on `checkUnbounded` with malformed problem. -/
+def tTotalityUnboundedMalformed : Outcome :=
+  let p := mkProblem 1 0
+    (c := #[1])
+    (a := #[])
+    (rowBounds := #[])
+    (colBounds := #[])                          -- size 0, numVars = 1
   let x : Array Rat := #[0]
   let r : Array Rat := #[1]
   expectFalse (checkUnbounded p x r)
@@ -391,11 +483,17 @@ def allTests : Array TestCase := #[
   ⟨"checkUnbounded: with equality row",             fun _ => tUnboundedWithEquality⟩,
   ⟨"checkOptimal rejects infeasible primal",        fun _ => tRejectInfeasiblePrimal⟩,
   ⟨"checkOptimal rejects bad stationarity",         fun _ => tRejectBadStationarity⟩,
+  ⟨"checkOptimal rejects ranged-row decomposition", fun _ => tRejectRangedRowDecomposition⟩,
   ⟨"checkOptimal rejects objective mismatch",       fun _ => tRejectObjectiveMismatch⟩,
   ⟨"checkInfeasible rejects non-strict bound sum",  fun _ => tRejectFarkasNotStrict⟩,
   ⟨"checkUnbounded rejects c·r = 0",                fun _ => tRejectUnboundedNonStrict⟩,
   ⟨"totality: primal size mismatch → false",        fun _ => tTotalityPrimalSizeMismatch⟩,
-  ⟨"totality: dual size mismatch → false",          fun _ => tTotalityDualSizeMismatch⟩
+  ⟨"totality: dual size mismatch → false",          fun _ => tTotalityDualSizeMismatch⟩,
+  ⟨"totality: malformed colBounds → false",         fun _ => tTotalityMalformedColBounds⟩,
+  ⟨"totality: malformed rowBounds → false",         fun _ => tTotalityMalformedRowBounds⟩,
+  ⟨"totality: sparse OOR → false",                  fun _ => tTotalitySparseOutOfRange⟩,
+  ⟨"totality: checkInfeasible malformed → false",   fun _ => tTotalityInfeasibleMalformed⟩,
+  ⟨"totality: checkUnbounded malformed → false",    fun _ => tTotalityUnboundedMalformed⟩
 ]
 
 def main : IO UInt32 := do
