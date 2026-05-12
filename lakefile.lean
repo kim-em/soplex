@@ -107,21 +107,17 @@ def soplexRuntimeLinkArgs : Array String :=
       "-lmingwex",     -- C99 wrappers; provides `_vsnprintf` etc.
       "-lmsvcrt"]
   else
-    -- Linux is a tricky case: SoPlex is compiled by the system g++
-    -- (libstdc++), so the SoPlex objects pull in libstdc++ symbols.
-    -- Lean's bundled clang, however, links the resulting `.so` with a
-    -- `NEEDED libc++.so.1` entry (from its own runtime dependencies),
-    -- so libc++ must also be present at *load* time. We resolve
-    -- SoPlex's C++ symbols via `-l:libstdc++.so.6` (the versioned
-    -- SONAME, so linking does not depend on a `libstdc++.so` symlink
-    -- which Ubuntu base images typically omit); the CI workflow
-    -- additionally installs `libc++1` so the load-time lookup succeeds.
+    -- SoPlex and the bridge are built with `clang++ -stdlib=libc++`
+    -- (see `bridgeCxxDriver` / `bridgeStdlibArgs` and the matching
+    -- override in `scripts/build-soplex.sh`), so the C++ runtime is
+    -- libc++ end-to-end and matches the libc++abi.a Lake's link
+    -- template statically pulls from Lean's bundled toolchain.
     #["-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",
       "-L/usr/lib",
       "-lgmpxx", "-lgmp",
-      "-l:libstdc++.so.6", "-lm"]
+      "-lm"]
 
 package leanSoplex where
   moreLinkArgs := soplexRuntimeLinkArgs
@@ -173,6 +169,21 @@ def systemIncludeArgs : Array String :=
   else
     #["-I/usr/include"]
 
+/-- Compiler driver for the bridge `.cpp` files. Lake's link template on
+    Linux statically pulls libc++abi.a from Lean's bundled toolchain, so
+    the bridge must compile against libc++ as well to keep typeinfo and
+    personality functions on a single C++ runtime. macOS already uses
+    libc++ end-to-end; Windows uses mingw g++ paired with libstdc++. -/
+def bridgeCxxDriver : String :=
+  if System.Platform.isOSX ∨ System.Platform.isWindows then "c++" else "clang++"
+
+/-- Linux-only compile flags for the bridge: select libc++ as the C++
+    standard library to match Lake's link-time libc++abi.a. Empty on
+    macOS (libc++ is the default) and Windows (libstdc++). -/
+def bridgeStdlibArgs : Array String :=
+  if System.Platform.isOSX ∨ System.Platform.isWindows then #[]
+  else #["-stdlib=libc++"]
+
 private def bridgeOTarget (pkg : Package) (src : String) :
     FetchM (Job FilePath) := do
   let stem := src.dropEnd 4  -- drop `.cpp`
@@ -190,7 +201,7 @@ private def bridgeOTarget (pkg : Package) (src : String) :
       "-I", ffiInc,
       "-I", soplexSrcInc,
       "-I", soplexBuildInc
-    ] ++ systemIncludeArgs) "c++"
+    ] ++ bridgeStdlibArgs ++ systemIncludeArgs) bridgeCxxDriver
 
 /-! ## Combined static library. -/
 

@@ -34,14 +34,11 @@ def version : UInt32 := versionImpl ()
     exceptionCheckImpl ()` would be evaluated at module load — i.e.
     inside `lean` while it elaborates any module that imports this one,
     which would crash the compiler if the throw/catch ABI is broken,
-    rather than surfacing as a clean smoke-executable failure.
+    rather than surfacing as a clean executable-level failure.
 
-    Exists primarily to validate the Windows
-    `-Wl,--allow-multiple-definition` link workaround in `lakefile.lean`;
-    if libc++ ever wins the link instead of libstdc++, calling this from
-    the smoke executable will return nonzero (or crash) rather than
-    silently producing a corrupted DLL. Run from `Main.lean` on every
-    platform. -/
+    Run from `Main.lean` on every non-macOS platform as a cross-stdlib
+    ABI canary; see the Linux / Windows branches of `soplexRuntimeLinkArgs`
+    in `lakefile.lean` for the link-time arrangements this validates. -/
 @[extern "lean_soplex_exception_check_ffi"]
 opaque exceptionCheck : Unit → UInt32
 
