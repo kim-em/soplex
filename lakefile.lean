@@ -178,3 +178,12 @@ lean_lib LeanSoplex where
 lean_exe «soplex-smoke» where
   root := `Main
   moreLinkArgs := soplexRuntimeLinkArgs
+
+/-- Hand-rolled tests for the pure-Lean certificate checker. No FFI /
+    SoPlex dependency, so this runs on every platform regardless of
+    whether the SoPlex link is healthy. Explicitly overrides
+    `moreLinkArgs` with `#[]` to avoid inheriting the package-level
+    SoPlex / GMP linker arguments. -/
+lean_exe «verify-tests» where
+  root := `VerifyTests
+  moreLinkArgs := #[]

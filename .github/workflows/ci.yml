@@ -43,6 +43,11 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
+      - name: Build and run verify-tests (no SoPlex dependency)
+        run: |
+          lake build verify-tests
+          ./.lake/build/bin/verify-tests
+
       - name: Build SoPlex
         run: ./scripts/build-soplex.sh
 
@@ -97,6 +102,11 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
+      - name: Build and run verify-tests (no SoPlex dependency)
+        run: |
+          lake build verify-tests
+          ./.lake/build/bin/verify-tests
+
       - name: Build SoPlex
         run: ./scripts/build-soplex.sh
 
@@ -114,12 +124,6 @@ jobs:
   windows:
     name: Windows (MSYS2 / mingw-w64)
     runs-on: windows-latest
-    # Windows currently fails to link: SoPlex compiled with mingw-g++
-    # against libstdc++ does not interoperate with Lean's bundled clang
-    # linker driver, which expects libc++. Tracked as a known issue;
-    # marked `continue-on-error` so the matrix as a whole is green
-    # while a proper toolchain unification is designed.
-    continue-on-error: true
     defaults:
       run:
         shell: msys2 {0}
@@ -144,34 +148,46 @@ jobs:
             curl
             unzip
 
-      # Single-shell session: GITHUB_PATH from the MSYS2 shell is not
-      # always honoured for subsequent steps on Windows, so we install
-      # elan, build SoPlex, build Lean, and run all in one block with
-      # PATH set up locally.
-      - name: Install elan, build, and run smoke
+      - name: Install elan and Lean toolchain
         run: |
           set -e
+          curl -sSf -L https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-pc-windows-msvc.zip -o elan-init.zip
+          unzip -q elan-init.zip
+          MSYS2_ARG_CONV_EXCL="*" ./elan-init.exe -y --default-toolchain none --no-modify-path
+          ELAN_DIR_MSYS="$(cygpath -u "$USERPROFILE")/.elan"
+          ls -la "$ELAN_DIR_MSYS/bin" || (echo "elan install did not produce expected files" && exit 1)
+          export PATH="$ELAN_DIR_MSYS/bin:$MINGW_PREFIX/bin:$PATH"
+          ./scripts/install-toolchain.sh
+          echo "$ELAN_DIR_MSYS/bin" > .elan-path
+          echo "$MINGW_PREFIX/bin" >> .elan-path
+
+      - name: Build and run verify-tests (no SoPlex dependency)
+        run: |
+          set -e
+          export PATH="$(paste -sd: .elan-path):$PATH"
+          lake build verify-tests
+          ./.lake/build/bin/verify-tests.exe
+
+      # The SoPlex build + smoke run remain `continue-on-error` until
+      # the libstdc++ / libc++ split is unified. PR #2 commit history
+      # documents the diagnosis. Tracked as the next follow-up after
+      # verify-tests lands.
+      - name: Build SoPlex and run smoke executable
+        continue-on-error: true
+        run: |
+          set -e
+          export PATH="$(paste -sd: .elan-path):$PATH"
+
           # Stage the MSYS2 runtime libraries into a project-local path
           # so the lakefile's `-L vendor/mingw-libs` works regardless of
-          # where setup-msys2 unpacks (default `C:\msys64`, GitHub
-          # runners' `RUNNER_TEMP\msys64`, etc.).
+          # where setup-msys2 unpacks.
           mkdir -p vendor/mingw-libs
           for pat in 'libgmpxx*' 'libgmp*' 'libgcc*' 'libwinpthread*' 'libstdc++*'; do
             cp "$MINGW_PREFIX/lib"/$pat vendor/mingw-libs/ 2>/dev/null || true
           done
           ls vendor/mingw-libs/
 
-          curl -sSf -L https://github.com/leanprover/elan/releases/latest/download/elan-x86_64-pc-windows-msvc.zip -o elan-init.zip
-          unzip -q elan-init.zip
-          MSYS2_ARG_CONV_EXCL="*" ./elan-init.exe -y --default-toolchain none --no-modify-path
-          ELAN_DIR_MSYS="$(cygpath -u "$USERPROFILE")/.elan"
-          ls -la "$ELAN_DIR_MSYS/bin" || (echo "elan install did not produce expected files" && exit 1)
-          export ELAN_HOME="$ELAN_DIR_MSYS"
-          export PATH="$ELAN_DIR_MSYS/bin:$MINGW_PREFIX/bin:$PATH"
-          ./scripts/install-toolchain.sh
-
           ./scripts/build-soplex.sh
-
           lake build LeanSoplex soplex-smoke
 
           set +e
