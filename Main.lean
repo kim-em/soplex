@@ -29,7 +29,7 @@ def main : IO UInt32 := do
   -- the link uses `-Wl,--allow-multiple-definition` to bridge a
   -- libstdc++ / libc++ duplicate; this catches the case where libc++
   -- silently wins and breaks `std::exception` throw/catch.
-  let exnRc := LeanSoplex.exceptionCheck
+  let exnRc := LeanSoplex.exceptionCheck ()
   IO.println s!"exception check = {exnRc}"
   if exnRc ≠ 0 then
     IO.eprintln s!"std::exception throw/catch broken (rc={exnRc}); likely C++ ABI mismatch in the linked DLL"
