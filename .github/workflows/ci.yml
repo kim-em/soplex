@@ -22,12 +22,13 @@ jobs:
       - name: Install GMP / Boost / CMake / build tools
         run: |
           sudo apt-get update
-          # libc++ is intentionally absent: the lakefile pins Lean's
-          # clang to libstdc++ on Linux. The link / load steps below
-          # double as a check that no libc++ runtime is required.
+          # `clang` + `libc++-dev` + `libc++abi-dev` let SoPlex and the
+          # bridge compile against libc++, matching the libc++abi.a
+          # Lake's link template pulls from Lean's bundled toolchain.
           sudo apt-get install -y \
-            cmake build-essential ninja-build \
+            cmake build-essential ninja-build clang \
             libgmp-dev libgmpxx4ldbl libboost-dev \
+            libc++-dev libc++abi-dev \
             zstd
 
       - name: Install elan and Lean toolchain
@@ -52,33 +53,6 @@ jobs:
 
       - name: Build Lean targets
         run: lake build LeanSoplex soplex-smoke
-
-      - name: Verify libc++ is absent from the loader graph
-        run: |
-          # `__gxx_personality_v0` must come from libstdc++ at unwind
-          # time. Check both direct `DT_NEEDED` and the transitive
-          # graph via `ldd` on every built artifact.
-          status=0
-          mapfile -t artifacts < <(
-            { find .lake/build -name '*.so' -type f
-              echo .lake/build/bin/soplex-smoke; } | sort -u)
-          for f in "${artifacts[@]}"; do
-            [ -e "$f" ] || continue
-            echo "--- $f"
-            echo "  DT_NEEDED:"
-            readelf -d "$f" | grep NEEDED || true
-            if readelf -d "$f" | grep -E 'NEEDED.*libc\+\+'; then
-              echo "ERROR: libc++ in DT_NEEDED of $f" >&2
-              status=1
-            fi
-            echo "  ldd:"
-            ldd "$f" || true
-            if ldd "$f" 2>/dev/null | grep -E 'libc\+\+'; then
-              echo "ERROR: libc++ in transitive loader graph of $f" >&2
-              status=1
-            fi
-          done
-          exit $status
 
       - name: Run smoke executable
         run: |

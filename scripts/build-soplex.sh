@@ -25,6 +25,16 @@ if [ ! -f "$SRC_DIR/CMakeLists.txt" ]; then
   exit 1
 fi
 
+# On Linux, compile SoPlex with clang++ -stdlib=libc++ so its object
+# files use the same C++ runtime as the bridge and Lake's link-time
+# libc++abi.a. macOS and Windows use their native default C++ compiler.
+if [ "$(uname -s)" = "Linux" ]; then
+  : "${CC:=clang}"
+  : "${CXX:=clang++}"
+  : "${CXXFLAGS:=-stdlib=libc++}"
+  export CC CXX CXXFLAGS
+fi
+
 # CMake configure. Exact-mode flags are pinned here. PAPILO (a separate
 # presolver dependency) and MPFR are disabled for the v0 bring-up; ZLIB
 # is disabled because nothing in our FFI surface reads compressed files.
