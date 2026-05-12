@@ -58,10 +58,54 @@ def soplexRuntimeLinkArgs : Array String :=
       "-lgmpxx", "-lgmp",
       "-lc++"]
   else if System.Platform.isWindows then
-    #["-Lvendor/mingw-libs",
-      "-LC:/msys64/mingw64/lib",
-      "-lgmpxx", "-lgmp",
-      "-lstdc++"]
+    -- Tested on MSYS2 MINGW64 with `mingw-w64-x86_64-gcc` (modern: GCC
+    -- 16). CLANG64 / UCRT64 / non-MSYS2 mingw installs are not exercised
+    -- in CI and likely need different archives. Run
+    -- `scripts/stage-mingw-libs.sh` from an MSYS2 MINGW64 shell before
+    -- `lake build` to populate `vendor/mingw-libs/`; the script verifies
+    -- the archives this lakefile references by relative path are
+    -- actually present.
+    --
+    -- SoPlex's pre-built `.o` files (compiled by mingw's `g++`) and our
+    -- bridge `.o` (compiled by Lake's `c++`, also mingw `g++`) both
+    -- emit libstdc++-mangled symbols. The `libstdc++.dll.a` *import lib*
+    -- carries pre-cxx11-ABI imports only, so the C++11-ABI symbols
+    -- SoPlex uses (`std::__cxx11::basic_string<…>` and friends) are
+    -- never satisfied by `-lstdc++`. We therefore pass the *static*
+    -- archive `libstdc++.a` directly by relative path — this avoids
+    -- any ambiguity with `-Wl,-Bstatic` and any reordering Lake may
+    -- do, and the static archive contains the full C++11 ABI. Same
+    -- trick for `libgmpxx.a` / `libgmp.a`. `libgcc_s` and `msvcrt` (the
+    -- latter for `__declspec(dllimport) _vsnprintf`) stay dynamic.
+    --
+    -- Lean's `clang.exe` on Windows auto-links `libc++.a` regardless
+    -- of `-stdlib=libstdc++` or `-nostdlib++` flags (it's in MSVC-style
+    -- mode where those driver flags are reported "unused"). Both
+    -- libc++ and our explicit libstdc++ define every C++ standard
+    -- exception type, so the link fails with duplicate symbols.
+    --
+    -- `--allow-multiple-definition` is a pragmatic hack: lld picks
+    -- whichever definition it sees first. Our explicit `libstdc++.a`
+    -- comes first, so libstdc++ wins and libc++'s definitions are
+    -- dropped on the floor. This means the *order* of entries in the
+    -- array below is load-bearing — if Lake or Lean ever reorder
+    -- libraries so libc++ wins, exception throw/catch will break at
+    -- runtime. `Main.lean` calls `LeanSoplex.exceptionCheck` (which
+    -- throws `std::runtime_error`, catches via `std::exception &`,
+    -- and validates `what()`) before the smoke LP solve, so a wrong
+    -- C++ ABI shows up as a CI failure rather than a silently
+    -- corrupted DLL.
+    --
+    -- A cleaner long-term fix is to compile SoPlex with libc++ from
+    -- the start, so the entire DLL uses one C++ ABI.
+    #["-Wl,--allow-multiple-definition",
+      "vendor/mingw-libs/libstdc++.a",
+      "vendor/mingw-libs/libgmpxx.a",
+      "vendor/mingw-libs/libgmp.a",
+      "-Lvendor/mingw-libs",
+      "-lgcc_s",
+      "-lmingwex",     -- C99 wrappers; provides `_vsnprintf` etc.
+      "-lmsvcrt"]
   else
     -- Linux is a tricky case: SoPlex is compiled by the system g++
     -- (libstdc++), so the SoPlex objects pull in libstdc++ symbols.

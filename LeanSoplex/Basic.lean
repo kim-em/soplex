@@ -25,6 +25,26 @@ opaque versionImpl : Unit → UInt32
 /-- SoPlex's compile-time `SOPLEX_VERSION` macro, e.g. `802` for v8.0.2. -/
 def version : UInt32 := versionImpl ()
 
+/-- Cross-stdlib ABI self-test: throws a `std::runtime_error` in C++,
+    catches via the `std::exception` base, verifies `what()` survives.
+    Returns `0` on success.
+
+    Exposed as a `Unit → UInt32` function rather than a `UInt32` value
+    so the call is deferred to invocation time. A bare `def : UInt32 :=
+    exceptionCheckImpl ()` would be evaluated at module load — i.e.
+    inside `lean` while it elaborates any module that imports this one,
+    which would crash the compiler if the throw/catch ABI is broken,
+    rather than surfacing as a clean smoke-executable failure.
+
+    Exists primarily to validate the Windows
+    `-Wl,--allow-multiple-definition` link workaround in `lakefile.lean`;
+    if libc++ ever wins the link instead of libstdc++, calling this from
+    the smoke executable will return nonzero (or crash) rather than
+    silently producing a corrupted DLL. Run from `Main.lean` on every
+    platform. -/
+@[extern "lean_soplex_exception_check_ffi"]
+opaque exceptionCheck : Unit → UInt32
+
 /-- Result of `smokeSolve`. `ret` follows the bridge convention:
     `0` = optimal, `1` = infeasible, `2` = unbounded, anything else is an
     FFI / SoPlex error. -/
