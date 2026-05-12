@@ -107,16 +107,30 @@ def soplexRuntimeLinkArgs : Array String :=
       "-lmingwex",     -- C99 wrappers; provides `_vsnprintf` etc.
       "-lmsvcrt"]
   else
-    -- Linux is a tricky case: SoPlex is compiled by the system g++
-    -- (libstdc++), so the SoPlex objects pull in libstdc++ symbols.
-    -- Lean's bundled clang, however, links the resulting `.so` with a
-    -- `NEEDED libc++.so.1` entry (from its own runtime dependencies),
-    -- so libc++ must also be present at *load* time. We resolve
-    -- SoPlex's C++ symbols via `-l:libstdc++.so.6` (the versioned
-    -- SONAME, so linking does not depend on a `libstdc++.so` symlink
-    -- which Ubuntu base images typically omit); the CI workflow
-    -- additionally installs `libc++1` so the load-time lookup succeeds.
-    #["-L/usr/lib/x86_64-linux-gnu",
+    -- Linux is a cross-stdlib link. SoPlex's `.o` files are produced
+    -- by the system `g++` and the bridge `.o` files by Lake's `c++`
+    -- (also system g++), so both reference libstdc++'s typeinfo,
+    -- vtables, and `__gxx_personality_v0`. Lean's bundled clang
+    -- driver on Linux, however, auto-links its own C++ runtime when
+    -- it sees C++ objects; without intervention the resulting `.so`
+    -- ends up with both `libstdc++.so.6` and `libc++abi.so.1` in
+    -- `DT_NEEDED`, and at runtime libc++abi's personality function
+    -- wins symbol resolution. libstdc++-style throws then fail to
+    -- match catch handlers because libc++abi does not recognise
+    -- libstdc++'s `std::exception` typeinfo — terminate is called
+    -- instead. See issue #6 for the diagnosis.
+    --
+    -- `-nostdlib++` suppresses clang's automatic libc++ link and
+    -- removes the libc++abi NEEDED entry. We then add libstdc++
+    -- ourselves via the versioned SONAME (`-l:libstdc++.so.6`)
+    -- so we do not rely on a `libstdc++.so` development symlink
+    -- which Ubuntu base images typically omit. `Main.lean`'s
+    -- `LeanSoplex.exceptionCheck` exercises the throw/catch path
+    -- on every CI platform, so a regression here surfaces as a
+    -- CI failure rather than a silent termination from a real
+    -- error path later.
+    #["-nostdlib++",
+      "-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",
       "-L/usr/lib",
