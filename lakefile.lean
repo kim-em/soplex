@@ -108,26 +108,25 @@ def soplexRuntimeLinkArgs : Array String :=
       "-lmsvcrt"]
   else
     -- SoPlex and the bridge `.o` files are produced by the system
-    -- `g++` against libstdc++, so they reference libstdc++'s typeinfo
-    -- and `__gxx_personality_v0`. The link below has to keep the
-    -- entire C++ runtime on the libstdc++ side; if libc++abi enters
-    -- the picture (even statically, via clang's resource dir) its
-    -- personality function shadows libstdc++'s and libstdc++-style
-    -- throws stop matching catch handlers.
+    -- `g++` against libstdc++. Lake's link template unconditionally
+    -- pulls libc++abi.a from Lean's bundled toolchain via
+    -- `-Wl,-Bstatic -lc++ -lc++abi -Wl,-Bdynamic`; that ships
+    -- libc++abi's `__gxx_personality_v0` / typeinfo into the output
+    -- and breaks libstdc++-style throws even though no libc++ ever
+    -- appears in `DT_NEEDED`.
     --
-    -- `-stdlib=libstdc++` and `-unwindlib=libgcc` pin Lean's clang
-    -- driver to the libstdc++ / libgcc-unwinder pair instead of
-    -- libc++ / libunwind. `-l:libstdc++.so.6` uses the versioned
-    -- SONAME so the link does not rely on a `libstdc++.so` dev
-    -- symlink which Ubuntu base images typically omit.
-    #["-stdlib=libstdc++",
-      "-unwindlib=libgcc",
+    -- `-static-libstdc++` resolves every C++ runtime symbol from the
+    -- system libstdc++.a *before* Lake's libc++abi.a is processed,
+    -- so the static libc++abi archive then contributes nothing.
+    -- libstdc++.a is provided by `libstdc++-dev` (a transitive
+    -- dependency of `build-essential` on Ubuntu).
+    #["-static-libstdc++",
       "-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",
       "-L/usr/lib",
       "-lgmpxx", "-lgmp",
-      "-l:libstdc++.so.6", "-lm"]
+      "-lm"]
 
 package leanSoplex where
   moreLinkArgs := soplexRuntimeLinkArgs
