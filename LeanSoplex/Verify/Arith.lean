@@ -190,4 +190,58 @@ theorem dualNonnegAndZeroWhereAbsent_imp
     exact ⟨or_not_isNone_decide_eq_true hj'.1.2,
            or_not_isNone_decide_eq_true hj'.2⟩
 
+/-! ## Size lemmas for `evalAx` / `evalATy` / `arraySub`.
+
+  These are the foundational size facts the soundness layer uses to
+  discharge index-in-range obligations when bridging Bool↔Prop. -/
+
+/-- `applyAx` preserves the output array's size. -/
+theorem applyAx_size (x : Array Rat) (out : Array Rat)
+    (entry : Nat × Nat × Rat) :
+    (LeanSoplex.Verify.applyAx x out entry).size = out.size := by
+  obtain ⟨r, c, v⟩ := entry
+  show (if h : r < out.size ∧ c < x.size
+       then out.set r (out[r]! + v * x[c]!) h.1 else out).size = out.size
+  by_cases h : r < out.size ∧ c < x.size
+  · simp [h, Array.size_set]
+  · simp [h]
+
+/-- `applyATy` preserves the output array's size. -/
+theorem applyATy_size (y : Array Rat) (out : Array Rat)
+    (entry : Nat × Nat × Rat) :
+    (LeanSoplex.Verify.applyATy y out entry).size = out.size := by
+  obtain ⟨r, c, v⟩ := entry
+  show (if h : c < out.size ∧ r < y.size
+       then out.set c (out[c]! + v * y[r]!) h.1 else out).size = out.size
+  by_cases h : c < out.size ∧ r < y.size
+  · simp [h, Array.size_set]
+  · simp [h]
+
+theorem evalAx_size (p : Problem) (x : Array Rat) :
+    (evalAx p x).size = p.numConstraints := by
+  unfold evalAx
+  refine Array.foldl_induction
+    (motive := fun (_ : Nat) (acc : Array Rat) => acc.size = p.numConstraints)
+    ?_ ?_
+  · simp
+  · intro i acc hAcc
+    rw [applyAx_size]
+    exact hAcc
+
+theorem evalATy_size (p : Problem) (y : Array Rat) :
+    (evalATy p y).size = p.numVars := by
+  unfold evalATy
+  refine Array.foldl_induction
+    (motive := fun (_ : Nat) (acc : Array Rat) => acc.size = p.numVars)
+    ?_ ?_
+  · simp
+  · intro i acc hAcc
+    rw [applyATy_size]
+    exact hAcc
+
+theorem arraySub_size_of_eq (a b : Array Rat) (h : a.size = b.size) :
+    (arraySub a b).size = a.size := by
+  unfold arraySub
+  rw [if_pos h, Array.size_zipWith, h, Nat.min_self]
+
 end LeanSoplex.Verify

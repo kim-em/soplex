@@ -52,7 +52,7 @@ def problemShapeOk (p : Problem) : Bool :=
     `v * x[c]!` into slot `r` of `out`, defensively skipping the entry
     if either index is out of range. Both `out` and `x` keep their
     sizes. -/
-@[inline] private def applyAx (x : Array Rat) (out : Array Rat)
+@[inline] def applyAx (x : Array Rat) (out : Array Rat)
     (entry : Nat × Nat × Rat) : Array Rat :=
   let (r, c, v) := entry
   if h : r < out.size ∧ c < x.size then
@@ -61,7 +61,7 @@ def problemShapeOk (p : Problem) : Bool :=
 
 /-- Apply a single sparse entry `(r, c, v)` to the transposed
     accumulator: add `v * y[r]!` into slot `c` of `out`. -/
-@[inline] private def applyATy (y : Array Rat) (out : Array Rat)
+@[inline] def applyATy (y : Array Rat) (out : Array Rat)
     (entry : Nat × Nat × Rat) : Array Rat :=
   let (r, c, v) := entry
   if h : c < out.size ∧ r < y.size then
