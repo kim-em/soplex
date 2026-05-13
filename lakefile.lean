@@ -251,6 +251,10 @@ lean_exe «solve-float-tests» where
   root := `SolveFloatTests
   moreLinkArgs := soplexRuntimeLinkArgs
 
+lean_exe «solve-compare-tests» where
+  root := `SolveCompareTests
+  moreLinkArgs := soplexRuntimeLinkArgs
+
 lean_exe «solve-verified-tests» where
   root := `SolveVerifiedTests
   moreLinkArgs := soplexRuntimeLinkArgs

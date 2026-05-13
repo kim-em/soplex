@@ -143,6 +143,18 @@ private def tBudgetExceeded (_ : Unit) : Outcome :=
   runVerified baseOpts p (denomBudget := some 1)
     (k := fun _ v => wantsUnchecked .budgetExceeded v)
 
+/-- The default denominator budget accepts an ordinary small exact
+    certificate. This pins the default as permissive for well-behaved
+    solves, complementing the absurdly-low-budget rejection above. -/
+private def tBudgetDefaultPasses (_ : Unit) : Outcome :=
+  let p := mkProblem 2 1
+    (c := #[1, 1])
+    (a := #[(0, 0, 1), (0, 1, 1)])
+    (rowBounds := #[(some 1, some 1)])
+    (colBounds := #[(some 0, none), (some 0, none)])
+  runVerified baseOpts p
+    (k := fun _ v => wantsOptimal v)
+
 /-- `denomBudget = none` disables the check and the optimal solve
     completes normally — pinned here to make sure the option really
     is a kill switch and not a "use this default" placeholder. -/
@@ -236,6 +248,7 @@ def allTests : Array TestCase := #[
   ⟨"unbounded: ray proof carried",              tUnbounded⟩,
   ⟨"maximize: IsOptimal _ .maximize transport", tMaximize⟩,
   ⟨"budget too small short-circuits",           tBudgetExceeded⟩,
+  ⟨"default budget accepts small certificate",  tBudgetDefaultPasses⟩,
   ⟨"budget=none disables the check",            tBudgetNoneDisables⟩,
   ⟨"invalid problem rejected before solve",     tInvalidProblem⟩,
   ⟨"verifyOutcome: optimal missing primal/dual", tMissingCertOptimal⟩,

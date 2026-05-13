@@ -66,6 +66,61 @@ private def richProblem : Problem :=
     (rowBounds := #[(none, some 4), (some 0, none)])
     (colBounds := #[(some 0, some 5), (some 0, none)])
 
+private structure ProblemCase where
+  name : String
+  problem : Problem
+
+private def exactCorpus : Array ProblemCase := #[
+  ⟨"optimal equality",
+    mkProblem 2 1
+      (c := #[1, 1])
+      (a := #[(0, 0, 1), (0, 1, 1)])
+      (rowBounds := #[(some 1, some 1)])
+      (colBounds := #[(some 0, none), (some 0, none)])⟩,
+  ⟨"ranged row",
+    mkProblem 1 1
+      (c := #[1])
+      (a := #[(0, 0, 1)])
+      (rowBounds := #[(some 1, some 3)])
+      (colBounds := #[(some 0, some 2)])⟩,
+  ⟨"infeasible rows only",
+    mkProblem 1 2
+      (c := #[0])
+      (a := #[(0, 0, 1), (1, 0, 1)])
+      (rowBounds := #[(some 1, none), (none, some 0)])
+      (colBounds := #[(none, none)])⟩,
+  ⟨"infeasible row and bounds",
+    mkProblem 1 1
+      (c := #[0])
+      (a := #[(0, 0, 1)])
+      (rowBounds := #[(some 2, none)])
+      (colBounds := #[(some 0, some 1)])⟩,
+  ⟨"unbounded",
+    mkProblem 1 0
+      (c := #[-1])
+      (a := #[])
+      (rowBounds := #[])
+      (colBounds := #[(some 0, none)])⟩,
+  ⟨"duplicate sparse entries and big rationals",
+    mkProblem 1 1
+      (c := #[1234567890123456789])
+      (a := #[(0, 0, 1/3), (0, 0, 2/3)])
+      (rowBounds := #[(some 1, some 1)])
+      (colBounds := #[(some 0, none)])⟩,
+  ⟨"max canonical form",
+    mkProblem 1 1
+      (c := #[-1])
+      (a := #[(0, 0, 1)])
+      (rowBounds := #[(none, some 1)])
+      (colBounds := #[(some 0, none)])⟩
+]
+
+/-- SoPlex's LP writer expands ranged rows into two one-sided rows, so
+    those cases are covered by the full MPS corpus instead. -/
+private def lpStructuralCorpus : Array ProblemCase :=
+  exactCorpus.filter fun c =>
+    c.name != "ranged row"
+
 private def withTempFile (suffix : String) (k : System.FilePath → IO Outcome) : IO Outcome := do
   let dir ← IO.currentDir
   let tmp := dir / s!".file-io-tests-tmp{suffix}"
@@ -92,6 +147,44 @@ private def tRoundtripLp : IO Outcome :=
       match readLp path with
       | .error e => return .fail s!"readLp failed: {repr e}"
       | .ok p' => return equalAfterValidate richProblem p'
+
+private def checkRoundtripMps (path : System.FilePath) (c : ProblemCase) : IO Outcome := do
+  match writeMps path c.problem with
+  | .error e => return .fail s!"{c.name}: writeMps failed: {repr e}"
+  | .ok () =>
+    match readMps path with
+    | .error e => return .fail s!"{c.name}: readMps failed: {repr e}"
+    | .ok p' =>
+      match equalAfterValidate c.problem p' with
+      | .ok => return .ok
+      | .fail msg => return .fail s!"{c.name}: {msg}"
+
+private def checkRoundtripLp (path : System.FilePath) (c : ProblemCase) : IO Outcome := do
+  match writeLp path c.problem with
+  | .error e => return .fail s!"{c.name}: writeLp failed: {repr e}"
+  | .ok () =>
+    match readLp path with
+    | .error e => return .fail s!"{c.name}: readLp failed: {repr e}"
+    | .ok p' =>
+      match equalAfterValidate c.problem p' with
+      | .ok => return .ok
+      | .fail msg => return .fail s!"{c.name}: {msg}"
+
+private def tCorpusRoundtripMps : IO Outcome :=
+  withTempFile ".corpus.mps" fun path => do
+    for c in exactCorpus do
+      match ← checkRoundtripMps path c with
+      | .ok => pure ()
+      | .fail msg => return .fail msg
+    return .ok
+
+private def tCorpusRoundtripLp : IO Outcome :=
+  withTempFile ".corpus.lp" fun path => do
+    for c in lpStructuralCorpus do
+      match ← checkRoundtripLp path c with
+      | .ok => pure ()
+      | .fail msg => return .fail msg
+    return .ok
 
 private def tFixtureMps : IO Outcome := do
   let path : System.FilePath := "tests" / "fixtures" / "tiny.mps"
@@ -148,6 +241,8 @@ private def tMissingFile : IO Outcome := do
 def allTests : Array TestCase := #[
   ⟨"MPS round-trip preserves structure",        tRoundtripMps⟩,
   ⟨"LP  round-trip preserves structure",        tRoundtripLp⟩,
+  ⟨"MPS corpus round-trip preserves structure", tCorpusRoundtripMps⟩,
+  ⟨"LP  corpus round-trip preserves structure", tCorpusRoundtripLp⟩,
   ⟨"hand-authored MPS fixture parses",          tFixtureMps⟩,
   ⟨"hand-authored LP fixture parses",           tFixtureLp⟩,
   ⟨"Maximize LP reads back as -c",              tMaximizeFixture⟩,
