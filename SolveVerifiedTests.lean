@@ -48,7 +48,7 @@ private def wantsOptimal {m n : Nat} {p : Problem m n} {sense : ObjSense} :
   | .optimal x h =>
       -- The match binding `h` confirms the proof exists; we also
       -- verify the primal vector has the right shape.
-      let _ : IsFeasible p x ∧ IsOptimal p sense x := h
+      let _ : IsFeasible p x.toArray ∧ IsOptimal p sense x.toArray := h
       expect (True) s!"optimal x has wrong size: {repr x}"
   | .infeasible _ => .fail "expected optimal, got infeasible"
   | .unbounded .. => .fail "expected optimal, got unbounded"
@@ -131,8 +131,8 @@ private def tMaximize (_ : Unit) : Outcome :=
   runVerified opts p (k := fun norm v =>
     match v with
     | .optimal x h =>
-        let _ : IsOptimal norm .maximize x := h.2
-        expect (x = #[1]) s!"bad max primal: {repr x}"
+        let _ : IsOptimal norm .maximize x.toArray := h.2
+        expect (x.toArray = #[1]) s!"bad max primal: {repr x}"
     | _ => .fail "expected .maximize Verified.optimal")
 
 /-- A budget of `1` rejects every certificate carrying a non-zero

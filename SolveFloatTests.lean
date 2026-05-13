@@ -93,7 +93,7 @@ private def tBinaryRoundTrip (_ : Unit) : Outcome :=
     match s.status, s.primalAsRat with
     | .optimal, some x =>
       if h : x.size = 1 then
-        let xq : Rat := x[0]'(by simp [h])
+        let xq : Rat := x[0]'(by simp)
         -- A decimal parser would have produced `1/10` (denominator 10);
         -- `mpq_set_d` always produces a power-of-two denominator. The
         -- numerator should also be close to `0.1 · 2^k` for the

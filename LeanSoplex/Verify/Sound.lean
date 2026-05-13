@@ -301,10 +301,10 @@ private theorem bound_combination_le_dot_q
        symmetric variants) to lower-bound each term by its dual-obj
        contribution.
     4. The remaining shifted sum is exactly `dualObj p d`. -/
-theorem weak_duality {m n : Nat} {p : Problem m n} {x : Array Rat} {d : DualBundle m n}
+theorem weak_duality {m n : Nat} {p : Problem m n} {x : Vector Rat n} {d : DualBundle m n}
     (hx : isPrimalFeasible p x = true)
     (hd : isDualFeasible    p d = true) :
-    dualObj p d ≤ primalObj p x := by
+    dualObj p d ≤ primalObj p x.toArray := by
   obtain ⟨hShape, hFeas⟩ := isPrimalFeasible_imp hx
   obtain ⟨_, hDualFeas⟩ := isDualFeasible_imp hd
   have hBound := bound_combination_le_dot_q hShape hFeas
@@ -314,15 +314,15 @@ theorem weak_duality {m n : Nat} {p : Problem m n} {x : Array Rat} {d : DualBund
 
 /-- Optimality certificate is sound: a Boolean-accepted certificate
     really witnesses feasibility and min-optimality. -/
-theorem checkOptimal_sound {m n : Nat} {p : Problem m n} {x : Array Rat} {d : DualBundle m n}
+theorem checkOptimal_sound {m n : Nat} {p : Problem m n} {x : Vector Rat n} {d : DualBundle m n}
     (h : checkOptimal p x d = true) :
-    IsFeasible p x ∧ IsOptimalMin p x := by
+    IsFeasible p x.toArray ∧ IsOptimalMin p x.toArray := by
   unfold checkOptimal at h
   rw [Bool.and_eq_true, Bool.and_eq_true] at h
   obtain ⟨⟨hPrimal, hDualBool⟩, hEqBool⟩ := h
   obtain ⟨hShape, hFeasX⟩ := isPrimalFeasible_imp hPrimal
   obtain ⟨_, hDual⟩ := isDualFeasible_imp hDualBool
-  have hEq : primalObj p x = dualObj p d := by
+  have hEq : primalObj p x.toArray = dualObj p d := by
     simpa [beq_iff_eq] using hEqBool
   refine ⟨hFeasX, hFeasX, ?_⟩
   intro y hFeasY
@@ -364,42 +364,44 @@ theorem checkInfeasible_sound {m n : Nat} {p : Problem m n} {d : DualBundle m n}
   exact this.elim
 
 private theorem feasible_addSmul_of_recession
-    {m n : Nat} {p : Problem m n} {x ray : Array Rat} {lam : Rat}
+    {m n : Nat} {p : Problem m n} {x ray : Vector Rat n} {lam : Rat}
     (hShape : ProblemShapeOk p)
-    (hFeas : IsFeasible p x)
-    (hRay : IsRecessionRay p ray)
+    (hFeas : IsFeasible p x.toArray)
+    (hRay : IsRecessionRay p ray.toArray)
     (hLam : 0 ≤ lam) :
-    IsFeasible p (Array.addSmul x lam ray) := by
+    IsFeasible p (Array.addSmul x.toArray lam ray.toArray) := by
   constructor
   · constructor
-    · have hSize := Array.addSmul_size_of_eq x ray lam (by rw [hFeas.1.1, hRay.size])
+    · have hSize := Array.addSmul_size_of_eq x.toArray ray.toArray lam
+        (by rw [hFeas.1.1, hRay.size])
       rw [hFeas.1.1] at hSize
       exact hSize
     · intro j
-      have hjx : j.val < x.size := by rw [hFeas.1.1]; exact j.isLt
-      have hjr : j.val < ray.size := by rw [hRay.size]; exact j.isLt
-      have hjy : j.val < (Array.addSmul x lam ray).size := by
-        rw [Array.addSmul_size_of_eq x ray lam (by rw [hFeas.1.1, hRay.size])]
+      have hjx : j.val < x.toArray.size := by rw [hFeas.1.1]; exact j.isLt
+      have hjr : j.val < ray.toArray.size := by rw [hRay.size]; exact j.isLt
+      have hjy : j.val < (Array.addSmul x.toArray lam ray.toArray).size := by
+        rw [Array.addSmul_size_of_eq x.toArray ray.toArray lam (by rw [hFeas.1.1, hRay.size])]
         exact hjx
       have hy :
-          (Array.addSmul x lam ray)[j.val]! =
-            x[j.val]! + lam * ray[j.val]! :=
-        Array.addSmul_get!_of_eq x ray lam (by rw [hFeas.1.1, hRay.size]) j.val hjx
+          (Array.addSmul x.toArray lam ray.toArray)[j.val]! =
+            x.toArray[j.val]! + lam * ray.toArray[j.val]! :=
+        Array.addSmul_get!_of_eq x.toArray ray.toArray lam
+          (by rw [hFeas.1.1, hRay.size]) j.val hjx
       have hxBounds := hFeas.1.2 j
       constructor
       · intro l hLo
         change p.colBounds[j.val]!.fst = some l at hLo
-        have hrNonneg : 0 ≤ ray[j.val]! :=
+        have hrNonneg : 0 ≤ ray.toArray[j.val]! :=
           hRay.col_lo_nonneg j.val j.isLt (by rw [hLo]; rfl)
-        have hStep : 0 ≤ lam * ray[j.val]! := Rat.mul_nonneg hLam hrNonneg
+        have hStep : 0 ≤ lam * ray.toArray[j.val]! := Rat.mul_nonneg hLam hrNonneg
         rw [hy]
         have hxLo := hxBounds.1 l hLo
         grind
       · intro u hHi
         change p.colBounds[j.val]!.snd = some u at hHi
-        have hrNonpos : ray[j.val]! ≤ 0 :=
+        have hrNonpos : ray.toArray[j.val]! ≤ 0 :=
           hRay.col_hi_nonpos j.val j.isLt (by rw [hHi]; rfl)
-        have hStep : lam * ray[j.val]! ≤ 0 := by
+        have hStep : lam * ray.toArray[j.val]! ≤ 0 := by
           have := Rat.mul_le_mul_of_nonneg_left hrNonpos hLam
           simpa using this
         rw [hy]
@@ -407,24 +409,24 @@ private theorem feasible_addSmul_of_recession
         grind
   · intro i
     have hAx :
-        (evalAx p (Array.addSmul x lam ray))[i.val]! =
-          (evalAx p x)[i.val]! + lam * (evalAx p ray)[i.val]! :=
-      evalAx_addSmul_get! p x ray lam hShape hFeas.1.1 hRay.size i.val i.isLt
+        (evalAx p (Array.addSmul x.toArray lam ray.toArray))[i.val]! =
+          (evalAx p x.toArray)[i.val]! + lam * (evalAx p ray.toArray)[i.val]! :=
+      evalAx_addSmul_get! p x.toArray ray.toArray lam hShape hFeas.1.1 hRay.size i.val i.isLt
     have hxBounds := hFeas.2 i
     constructor
     · intro l hLo
       change p.rowBounds[i.val]!.fst = some l at hLo
-      have hrNonneg : 0 ≤ (evalAx p ray)[i.val]! :=
+      have hrNonneg : 0 ≤ (evalAx p ray.toArray)[i.val]! :=
         hRay.row_lo_nonneg i.val i.isLt (by rw [hLo]; rfl)
-      have hStep : 0 ≤ lam * (evalAx p ray)[i.val]! := Rat.mul_nonneg hLam hrNonneg
+      have hStep : 0 ≤ lam * (evalAx p ray.toArray)[i.val]! := Rat.mul_nonneg hLam hrNonneg
       rw [hAx]
       have hxLo := hxBounds.1 l hLo
       grind
     · intro u hHi
       change p.rowBounds[i.val]!.snd = some u at hHi
-      have hrNonpos : (evalAx p ray)[i.val]! ≤ 0 :=
+      have hrNonpos : (evalAx p ray.toArray)[i.val]! ≤ 0 :=
         hRay.row_hi_nonpos i.val i.isLt (by rw [hHi]; rfl)
-      have hStep : lam * (evalAx p ray)[i.val]! ≤ 0 := by
+      have hStep : lam * (evalAx p ray.toArray)[i.val]! ≤ 0 := by
         have := Rat.mul_le_mul_of_nonneg_left hrNonpos hLam
         simpa using this
       rw [hAx]
@@ -432,7 +434,7 @@ private theorem feasible_addSmul_of_recession
       grind
 
 /-- Unbounded certificate is sound. -/
-theorem checkUnbounded_sound {m n : Nat} {p : Problem m n} {x ray : Array Rat}
+theorem checkUnbounded_sound {m n : Nat} {p : Problem m n} {x ray : Vector Rat n}
     (h : checkUnbounded p x ray = true) :
     IsUnboundedMin p := by
   unfold checkUnbounded at h
@@ -440,22 +442,22 @@ theorem checkUnbounded_sound {m n : Nat} {p : Problem m n} {x ray : Array Rat}
   obtain ⟨⟨hPrimal, hRayBool⟩, hNegBool⟩ := h
   obtain ⟨hShape, hFeasX⟩ := isPrimalFeasible_imp hPrimal
   have hRay := isRecessionRay_imp hRayBool
-  have hNeg : dot p.c.toArray ray < 0 := by
+  have hNeg : dot p.c.toArray ray.toArray < 0 := by
     simpa using hNegBool
-  refine ⟨⟨x, hFeasX⟩, ?_⟩
+  refine ⟨⟨x.toArray, hFeasX⟩, ?_⟩
   intro M
-  by_cases hAlready : primalObj p x < M
-  · exact ⟨x, hFeasX, hAlready⟩
-  · let denom := -dot p.c.toArray ray
-    let lam := (primalObj p x - M) / denom + 1
+  by_cases hAlready : primalObj p x.toArray < M
+  · exact ⟨x.toArray, hFeasX, hAlready⟩
+  · let denom := -dot p.c.toArray ray.toArray
+    let lam := (primalObj p x.toArray - M) / denom + 1
     have hDenomPos : 0 < denom := by
       unfold denom
       grind
-    have hBaseGe : M ≤ primalObj p x := by
+    have hBaseGe : M ≤ primalObj p x.toArray := by
       grind
-    have hDiffNonneg : 0 ≤ primalObj p x - M := by
+    have hDiffNonneg : 0 ≤ primalObj p x.toArray - M := by
       exact RatAux.sub_nonneg.mpr hBaseGe
-    have hFracNonneg : 0 ≤ (primalObj p x - M) / denom := by
+    have hFracNonneg : 0 ≤ (primalObj p x.toArray - M) / denom := by
       have hInv : 0 ≤ denom⁻¹ := Rat.le_of_lt (Rat.inv_pos.mpr hDenomPos)
       simpa [Rat.div] using Rat.mul_nonneg hDiffNonneg hInv
     have hLamNonneg : 0 ≤ lam := by
@@ -464,26 +466,29 @@ theorem checkUnbounded_sound {m n : Nat} {p : Problem m n} {x ray : Array Rat}
     have hLamPos : 0 < lam := by
       unfold lam
       grind
-    refine ⟨Array.addSmul x lam ray,
+    refine ⟨Array.addSmul x.toArray lam ray.toArray,
       feasible_addSmul_of_recession hShape hFeasX hRay hLamNonneg, ?_⟩
     have hObj :
-        primalObj p (Array.addSmul x lam ray) =
-          primalObj p x + lam * dot p.c.toArray ray := by
-      exact primalObj_addSmul p x ray lam (by rw [hShape.c_size, hFeasX.1.1])
+        primalObj p (Array.addSmul x.toArray lam ray.toArray) =
+          primalObj p x.toArray + lam * dot p.c.toArray ray.toArray := by
+      exact primalObj_addSmul p x.toArray ray.toArray lam (by rw [hShape.c_size, hFeasX.1.1])
         (by rw [hFeasX.1.1, hRay.size])
     rw [hObj]
     unfold lam denom
     have hDrop :
-        primalObj p x +
-            (((primalObj p x - M) / (-dot p.c.toArray ray) + 1) * dot p.c.toArray ray) =
-          M + dot p.c.toArray ray := by
-      have hDenomNe : -dot p.c.toArray ray ≠ 0 := by grind
+        primalObj p x.toArray +
+            (((primalObj p x.toArray - M) / (-dot p.c.toArray ray.toArray) + 1) *
+              dot p.c.toArray ray.toArray) =
+          M + dot p.c.toArray ray.toArray := by
+      have hDenomNe : -dot p.c.toArray ray.toArray ≠ 0 := by grind
       have hcancel :
-          (primalObj p x - M) / (-dot p.c.toArray ray) * (-dot p.c.toArray ray) =
-            primalObj p x - M := Rat.div_mul_cancel hDenomNe
+          (primalObj p x.toArray - M) / (-dot p.c.toArray ray.toArray) *
+              (-dot p.c.toArray ray.toArray) =
+            primalObj p x.toArray - M := Rat.div_mul_cancel hDenomNe
       have hpart :
-          (primalObj p x - M) / (-dot p.c.toArray ray) * dot p.c.toArray ray =
-            -(primalObj p x - M) := by
+          (primalObj p x.toArray - M) / (-dot p.c.toArray ray.toArray) *
+              dot p.c.toArray ray.toArray =
+            -(primalObj p x.toArray - M) := by
         grind [Rat.mul_neg, Rat.neg_neg]
       grind [Rat.mul_add, Rat.add_assoc, Rat.add_comm, Rat.add_left_comm,
         Rat.sub_eq_add_neg]

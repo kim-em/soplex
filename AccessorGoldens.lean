@@ -100,7 +100,7 @@ private def runOne (case : CoreCase) (sense : ObjSense) : Outcome :=
             errs := errs.push s!"obj: expected {repr expectedObjUser}, got {repr obj}"
           if !dualEq d case.expectedDual then
             errs := errs.push s!"dual: expected {repr case.expectedDual}, got {repr d}"
-          if !checkOptimal pCanon x.toArray d then
+          if !checkOptimal pCanon x d then
             errs := errs.push s!"checkOptimal returned false on pCanon={repr pCanon}, x={repr x}, d={repr d}"
           pure errs
         if parts.isEmpty then .ok

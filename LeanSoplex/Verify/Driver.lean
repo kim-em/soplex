@@ -25,12 +25,12 @@ open LeanSoplex
     the validated / normalised form**, never the user's raw input. -/
 inductive Verified {m n : Nat} (p : Problem m n) (sense : ObjSense)
   /-- Optimal: a feasible point that achieves the optimum. -/
-  | optimal     (x : Array Rat)
-                (h : IsFeasible p x ∧ IsOptimal p sense x)
+  | optimal     (x : Vector Rat n)
+                (h : IsFeasible p x.toArray ∧ IsOptimal p sense x.toArray)
   /-- Provably infeasible. -/
   | infeasible  (h : IsInfeasible p)
   /-- Unbounded: a feasible base point and an improving recession ray. -/
-  | unbounded   (x ray : Array Rat) (h : IsUnbounded p sense)
+  | unbounded   (x ray : Vector Rat n) (h : IsUnbounded p sense)
   /-- Solver couldn't decide, or its certificate failed to verify. -/
   | unchecked   (status : SolveStatus)
 
@@ -84,9 +84,9 @@ def verifyOutcome {m n : Nat} (opts : Options) (denomBudget : Option Nat)
       else
         match sol.certificate.primal, sol.certificate.dual with
         | some x, some d =>
-            if hChk : checkOptimal pCanon x.toArray d = true then
+            if hChk : checkOptimal pCanon x d = true then
               let ⟨hFeas, hOpt⟩ := checkOptimal_sound hChk
-              .optimal x.toArray ⟨isFeasible_canonicalize_iff.mp hFeas, hOpt⟩
+              .optimal x ⟨isFeasible_canonicalize_iff.mp hFeas, hOpt⟩
             else
               .unchecked .optimal
         | _, _ => .unchecked .optimal
@@ -105,8 +105,8 @@ def verifyOutcome {m n : Nat} (opts : Options) (denomBudget : Option Nat)
       else
         match sol.certificate.primal, sol.certificate.ray with
         | some x, some r =>
-            if hChk : checkUnbounded pCanon x.toArray r.toArray = true then
-              .unbounded x.toArray r.toArray (checkUnbounded_sound hChk)
+            if hChk : checkUnbounded pCanon x r = true then
+              .unbounded x r (checkUnbounded_sound hChk)
             else
               .unchecked .unbounded
         | _, _ => .unchecked .unbounded

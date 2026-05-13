@@ -916,14 +916,14 @@ private theorem leUB_imp {x : Rat} {hi : Option Rat} (h : leUB x hi = true) :
   exact of_decide_eq_true h
 
 theorem isPrimalFeasible_imp
-    {m n : Nat} {p : Problem m n} {x : Array Rat}
+    {m n : Nat} {p : Problem m n} {x : Vector Rat n}
     (h : isPrimalFeasible p x = true) :
-    ProblemShapeOk p ∧ IsFeasible p x := by
+    ProblemShapeOk p ∧ IsFeasible p x.toArray := by
   unfold isPrimalFeasible at h
-  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
-  obtain ⟨⟨⟨hShape, hxSize⟩, hCol⟩, hRow⟩ := h
+  rw [Bool.and_eq_true, Bool.and_eq_true] at h
+  obtain ⟨⟨hShape, hCol⟩, hRow⟩ := h
   have hShape' := problemShapeOk_imp hShape
-  have hxSize' : x.size = n := of_decide_eq_true hxSize
+  have hxSize' : x.toArray.size = n := x.size_toArray
   rw [Array.all_eq_true] at hCol hRow
   refine ⟨hShape', ?_, ?_⟩
   · -- ColBoundsSatisfied
@@ -933,7 +933,7 @@ theorem isPrimalFeasible_imp
       simp [Array.size_range, j.isLt]
     have hj' := hCol j.val hRange
     rw [Array.getElem_range, Bool.and_eq_true] at hj'
-    exact ⟨geLB_imp hj'.1, leUB_imp hj'.2⟩
+    exact ⟨by simpa using geLB_imp hj'.1, by simpa using leUB_imp hj'.2⟩
   · -- RowBoundsSatisfied
     intro i
     have hRange : i.val < (Array.range m).size := by
@@ -943,15 +943,15 @@ theorem isPrimalFeasible_imp
     exact ⟨geLB_imp hi'.1, leUB_imp hi'.2⟩
 
 theorem isRecessionRay_imp
-    {m n : Nat} {p : Problem m n} {r : Array Rat}
+    {m n : Nat} {p : Problem m n} {r : Vector Rat n}
     (h : isRecessionRay p r = true) :
-    IsRecessionRay p r := by
+    IsRecessionRay p r.toArray := by
   unfold isRecessionRay at h
-  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
-  obtain ⟨⟨⟨_, hSize⟩, hCol⟩, hRow⟩ := h
+  rw [Bool.and_eq_true, Bool.and_eq_true] at h
+  obtain ⟨⟨_, hCol⟩, hRow⟩ := h
   rw [Array.all_eq_true] at hCol hRow
   refine
-    { size := of_decide_eq_true hSize
+    { size := r.size_toArray
       col_lo_nonneg := ?_
       col_hi_nonpos := ?_
       row_lo_nonneg := ?_
@@ -961,13 +961,13 @@ theorem isRecessionRay_imp
       simpa [Array.size_range] using hj
     have hj' := hCol j hRange
     rw [Array.getElem_range, Bool.and_eq_true] at hj'
-    exact or_not_isSome_decide_eq_true hj'.1 hLo
+    simpa using or_not_isSome_decide_eq_true hj'.1 hLo
   · intro j hj hHi
     have hRange : j < (Array.range n).size := by
       simpa [Array.size_range] using hj
     have hj' := hCol j hRange
     rw [Array.getElem_range, Bool.and_eq_true] at hj'
-    exact or_not_isSome_decide_eq_true hj'.2 hHi
+    simpa using or_not_isSome_decide_eq_true hj'.2 hHi
   · intro i hi hLo
     have hRange : i < (Array.range m).size := by
       simpa [Array.size_range] using hi

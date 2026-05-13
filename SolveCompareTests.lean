@@ -57,15 +57,16 @@ private def tFloatRoundsButExactVerifies (_ : Unit) : Outcome :=
     | .optimal, some fx, .optimal, some exactObj, some ex, some d, .optimal vx h =>
       if hfx : fx.size = 1 then
         if hex : ex.size = 1 then
-          let fx0 := fx[0]'(by simp [hfx])
-          let ex0 := ex[0]'(by simp [hex])
+          let fx0 := fx[0]'(by simp)
+          let ex0 := ex[0]'(by simp)
           let gap := absRat (exactObj - fx0)
-          let _ : IsFeasible vs.normalized vx ∧ IsOptimal vs.normalized noPresolve.sense vx := h
+          let _ : IsFeasible vs.normalized vx.toArray ∧
+              IsOptimal vs.normalized noPresolve.sense vx.toArray := h
           expect
             (exactObj = exactRhs &&
              ex0 = exactRhs &&
-             vx = #[exactRhs] &&
-             checkOptimal (canonicalize noPresolve.sense vs.normalized) ex.toArray d &&
+             vx.toArray = #[exactRhs] &&
+             checkOptimal (canonicalize noPresolve.sense vs.normalized) ex d &&
              gap > (1 : Rat) / 10)
             (s!"expected exact RHS and float gap > 0.1; " ++
              s!"float={fx0}, exactObj={exactObj}, exactPrimal={ex0}, gap={gap}")

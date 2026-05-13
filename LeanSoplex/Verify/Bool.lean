@@ -163,13 +163,12 @@ def dot (a b : Array Rat) : Rat :=
 /-! ## Primal feasibility. -/
 
 /-- Decide whether `x` is primal-feasible for the (normalised) `p`. -/
-def isPrimalFeasible {m n : Nat} (p : Problem m n) (x : Array Rat) : Bool :=
+def isPrimalFeasible {m n : Nat} (p : Problem m n) (x : Vector Rat n) : Bool :=
   problemShapeOk p
-  && decide (x.size = n)
   && (Array.range n).all (fun j =>
        let (lo, hi) := p.colBounds[j]!
        geLB x[j]! lo && leUB x[j]! hi)
-  && let ax := evalAx p x
+  && let ax := evalAx p x.toArray
      (Array.range m).all (fun i =>
        let (lo, hi) := p.rowBounds[i]!
        geLB ax[i]! lo && leUB ax[i]! hi)
@@ -305,10 +304,10 @@ def boundCombinationPos {m n : Nat} (p : Problem m n) (d : DualBundle m n) : Boo
 /-- Optimal certificate: primal feasibility, dual feasibility, and
     strong duality `c·x* + objOffset = dualObj`. -/
 def checkOptimal {m n : Nat}
-    (p : Problem m n) (x : Array Rat) (d : DualBundle m n) : Bool :=
+    (p : Problem m n) (x : Vector Rat n) (d : DualBundle m n) : Bool :=
   isPrimalFeasible p x
   && isDualFeasible p d
-  && primalObj p x == dualObj p d
+  && primalObj p x.toArray == dualObj p d
 
 /-- Infeasibility (Farkas) certificate: homogeneous dual feasibility
     plus strict-positive bound combination. -/
@@ -320,14 +319,13 @@ def checkInfeasible {m n : Nat} (p : Problem m n) (d : DualBundle m n) : Bool :=
     a finite bound on a given side produces the corresponding sign
     constraint on the corresponding `(Ar)ᵢ` / `rⱼ`. Equality rows /
     boxed columns collapse to `= 0`. -/
-def isRecessionRay {m n : Nat} (p : Problem m n) (r : Array Rat) : Bool :=
+def isRecessionRay {m n : Nat} (p : Problem m n) (r : Vector Rat n) : Bool :=
   problemShapeOk p
-  && decide (r.size = n)
   && (Array.range n).all (fun j =>
        let (lo, hi) := p.colBounds[j]!
        (!lo.isSome || decide (0 ≤ r[j]!))
        && (!hi.isSome || decide (r[j]! ≤ 0)))
-  && let ar := evalAx p r
+  && let ar := evalAx p r.toArray
      (Array.range m).all (fun i =>
        let (lo, hi) := p.rowBounds[i]!
        (!lo.isSome || decide (0 ≤ ar[i]!))
@@ -335,9 +333,9 @@ def isRecessionRay {m n : Nat} (p : Problem m n) (r : Array Rat) : Bool :=
 
 /-- Unbounded certificate: a feasible base point and an improving
     recession ray. -/
-def checkUnbounded {m n : Nat} (p : Problem m n) (x ray : Array Rat) : Bool :=
+def checkUnbounded {m n : Nat} (p : Problem m n) (x ray : Vector Rat n) : Bool :=
   isPrimalFeasible p x
   && isRecessionRay p ray
-  && dot p.c.toArray ray < 0
+  && dot p.c.toArray ray.toArray < 0
 
 end LeanSoplex.Verify

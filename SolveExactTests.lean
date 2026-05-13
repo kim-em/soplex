@@ -48,7 +48,7 @@ private def tOptimalEquality (_ : Unit) : Outcome :=
   solveChecked noPresolve p fun p' s =>
     match s.status, s.certificate.primal, s.certificate.dual, s.objective with
     | .optimal, some x, some d, some obj =>
-      expect (obj == 1 && checkOptimal p' x.toArray d)
+      expect (obj == 1 && checkOptimal p' x d)
         s!"bad optimal cert: obj={repr obj}, x={repr x}, d={repr d}"
     | _, _, _, _ => .fail s!"unexpected solution: {repr s}"
 
@@ -61,7 +61,7 @@ private def tRangedRow (_ : Unit) : Outcome :=
   solveChecked noPresolve p fun p' s =>
     match s.status, s.certificate.primal, s.certificate.dual with
     | .optimal, some x, some d =>
-      expect (x.toArray == #[1] && checkOptimal p' x.toArray d)
+      expect (x.toArray == #[1] && checkOptimal p' x d)
         s!"bad ranged-row cert: x={repr x}, d={repr d}"
     | _, _, _ => .fail s!"unexpected solution: {repr s}"
 
@@ -98,7 +98,7 @@ private def tUnbounded (_ : Unit) : Outcome :=
   solveChecked noPresolve p fun p' s =>
     match s.status, s.certificate.primal, s.certificate.ray with
     | .unbounded, some x, some r =>
-      expect (checkUnbounded p' x.toArray r.toArray) s!"bad unbounded cert: x={repr x}, ray={repr r}"
+      expect (checkUnbounded p' x r) s!"bad unbounded cert: x={repr x}, ray={repr r}"
     | _, _, _ => .fail s!"unexpected solution: {repr s}"
 
 private def tDuplicateAndBigRat (_ : Unit) : Outcome :=
@@ -110,7 +110,7 @@ private def tDuplicateAndBigRat (_ : Unit) : Outcome :=
   solveChecked noPresolve p fun p' s =>
     match s.status, s.certificate.primal, s.certificate.dual with
     | .optimal, some x, some d =>
-      expect (x.toArray == #[1] && checkOptimal p' x.toArray d)
+      expect (x.toArray == #[1] && checkOptimal p' x d)
         s!"bad duplicate/big-rat cert: x={repr x}, d={repr d}"
     | _, _, _ => .fail s!"unexpected solution: {repr s}"
 
@@ -153,7 +153,7 @@ private def tMaximize (_ : Unit) : Outcome :=
   solveChecked opts p fun p' s =>
     match s.status, s.certificate.primal, s.certificate.dual, s.objective with
     | .optimal, some x, some d, some obj =>
-      expect (obj == 1 && x.toArray == #[1] && checkOptimal p' x.toArray d)
+      expect (obj == 1 && x.toArray == #[1] && checkOptimal p' x d)
         s!"bad max cert: obj={repr obj}, x={repr x}, d={repr d}"
     | _, _, _, _ => .fail s!"unexpected solution: {repr s}"
 
