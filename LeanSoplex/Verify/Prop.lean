@@ -77,42 +77,69 @@ def IsUnboundedMin (p : Problem) : Prop :=
 /-- Componentwise nonnegativity plus zero-where-the-matching-bound-is-
     absent. Pulled out so both `IsDualFeasible` and `IsFarkasDualFeasible`
     can reuse it. -/
-structure DualNonnegZeroWhereAbsent (p : Problem) (d : DualBundle) : Prop where
-  rowLower_size : d.rowLower.size = p.numConstraints
-  rowUpper_size : d.rowUpper.size = p.numConstraints
-  colLower_size : d.colLower.size = p.numVars
-  colUpper_size : d.colUpper.size = p.numVars
+structure DualNonnegZeroWhereAbsent {m n : Nat}
+    (p : Problem) (d : DualBundle m n) : Prop where
+  numConstraints_eq : m = p.numConstraints
+  numVars_eq       : n = p.numVars
   row_nonneg : ∀ i, i < p.numConstraints →
-    0 ≤ d.rowLower[i]! ∧ 0 ≤ d.rowUpper[i]!
+    0 ≤ d.rowLower.toArray[i]! ∧ 0 ≤ d.rowUpper.toArray[i]!
   col_nonneg : ∀ j, j < p.numVars →
-    0 ≤ d.colLower[j]! ∧ 0 ≤ d.colUpper[j]!
+    0 ≤ d.colLower.toArray[j]! ∧ 0 ≤ d.colUpper.toArray[j]!
   row_zero_absent : ∀ i, i < p.numConstraints →
-    ((p.rowBounds[i]!).1 = none → d.rowLower[i]! = 0) ∧
-    ((p.rowBounds[i]!).2 = none → d.rowUpper[i]! = 0)
+    ((p.rowBounds[i]!).1 = none → d.rowLower.toArray[i]! = 0) ∧
+    ((p.rowBounds[i]!).2 = none → d.rowUpper.toArray[i]! = 0)
   col_zero_absent : ∀ j, j < p.numVars →
-    ((p.colBounds[j]!).1 = none → d.colLower[j]! = 0) ∧
-    ((p.colBounds[j]!).2 = none → d.colUpper[j]! = 0)
+    ((p.colBounds[j]!).1 = none → d.colLower.toArray[j]! = 0) ∧
+    ((p.colBounds[j]!).2 = none → d.colUpper.toArray[j]! = 0)
+
+namespace DualNonnegZeroWhereAbsent
+
+variable {m n : Nat} {p : Problem} {d : DualBundle m n}
+
+/-- Legacy convenience: `d.rowLower.toArray.size = p.numConstraints`.
+    Was a structure field in the pre-`Vector` design; kept as a
+    derived accessor so existing dot-notation proofs (e.g.
+    `hDual.rowLower_size`) still work. -/
+theorem rowLower_size (h : DualNonnegZeroWhereAbsent p d) :
+    d.rowLower.toArray.size = p.numConstraints := by
+  rw [Vector.size_toArray]; exact h.numConstraints_eq
+
+theorem rowUpper_size (h : DualNonnegZeroWhereAbsent p d) :
+    d.rowUpper.toArray.size = p.numConstraints := by
+  rw [Vector.size_toArray]; exact h.numConstraints_eq
+
+theorem colLower_size (h : DualNonnegZeroWhereAbsent p d) :
+    d.colLower.toArray.size = p.numVars := by
+  rw [Vector.size_toArray]; exact h.numVars_eq
+
+theorem colUpper_size (h : DualNonnegZeroWhereAbsent p d) :
+    d.colUpper.toArray.size = p.numVars := by
+  rw [Vector.size_toArray]; exact h.numVars_eq
+
+end DualNonnegZeroWhereAbsent
 
 /-- Stationarity against an arbitrary `q : Array Rat`:
     `Aᵀ(yL − yU) + (zL − zU) = q` componentwise. -/
-def StationarityAgainst (p : Problem) (d : DualBundle) (q : Array Rat) : Prop :=
+def StationarityAgainst {m n : Nat}
+    (p : Problem) (d : DualBundle m n) (q : Array Rat) : Prop :=
   ∀ j, j < p.numVars →
-    (evalATy p (arraySub d.rowLower d.rowUpper))[j]! +
-      (d.colLower[j]! - d.colUpper[j]!) = q[j]!
+    (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray))[j]! +
+      (d.colLower.toArray[j]! - d.colUpper.toArray[j]!) = q[j]!
 
 /-- Full dual feasibility for the optimality certificate: nonnegativity,
     zero-where-absent, and stationarity against the objective `c`. -/
-structure IsDualFeasible (p : Problem) (d : DualBundle) : Prop where
+structure IsDualFeasible {m n : Nat} (p : Problem) (d : DualBundle m n) : Prop where
   nonneg_zero_absent : DualNonnegZeroWhereAbsent p d
   stationarity : StationarityAgainst p d p.c
 
 /-- Farkas (homogeneous) dual feasibility: nonnegativity, zero-where-absent,
     and stationarity against `0`. -/
-structure IsFarkasDualFeasible (p : Problem) (d : DualBundle) : Prop where
+structure IsFarkasDualFeasible {m n : Nat}
+    (p : Problem) (d : DualBundle m n) : Prop where
   nonneg_zero_absent : DualNonnegZeroWhereAbsent p d
   stationarity_zero : ∀ j, j < p.numVars →
-    (evalATy p (arraySub d.rowLower d.rowUpper))[j]! +
-      (d.colLower[j]! - d.colUpper[j]!) = 0
+    (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray))[j]! +
+      (d.colLower.toArray[j]! - d.colUpper.toArray[j]!) = 0
 
 /-- Prop form of `isRecessionRay`. Each row/column with a finite bound
     on a given side constrains the ray's sign on the matching `r[j]!`

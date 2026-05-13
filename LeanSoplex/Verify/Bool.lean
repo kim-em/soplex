@@ -112,27 +112,28 @@ def isPrimalFeasible (p : Problem) (x : Array Rat) : Bool :=
 
 /-! ## Dual feasibility. -/
 
-/-- Each `DualBundle` array must have the right length, every entry
-    must be nonnegative, and any coordinate matching an absent bound
-    must be zero. -/
-def dualNonnegAndZeroWhereAbsent (p : Problem) (d : DualBundle) : Bool :=
+/-- Each `DualBundle` vector matches the problem's dimensions in its
+    type; here we additionally check that every entry is nonnegative,
+    and any coordinate matching an absent bound is zero. The `m = …`
+    `n = …` size guards remain explicit because `d.rowLower.size = m`
+    is definitional but `m = p.numConstraints` is not. -/
+def dualNonnegAndZeroWhereAbsent {m n : Nat}
+    (p : Problem) (d : DualBundle m n) : Bool :=
   problemShapeOk p
-  && decide (d.rowLower.size = p.numConstraints)
-  && decide (d.rowUpper.size = p.numConstraints)
-  && decide (d.colLower.size = p.numVars)
-  && decide (d.colUpper.size = p.numVars)
+  && decide (m = p.numConstraints)
+  && decide (n = p.numVars)
   && (Array.range p.numConstraints).all (fun i =>
        let (lo, hi) := p.rowBounds[i]!
-       decide (0 ≤ d.rowLower[i]!)
-       && decide (0 ≤ d.rowUpper[i]!)
-       && (!lo.isNone || decide (d.rowLower[i]! = 0))
-       && (!hi.isNone || decide (d.rowUpper[i]! = 0)))
+       decide (0 ≤ d.rowLower.toArray[i]!)
+       && decide (0 ≤ d.rowUpper.toArray[i]!)
+       && (!lo.isNone || decide (d.rowLower.toArray[i]! = 0))
+       && (!hi.isNone || decide (d.rowUpper.toArray[i]! = 0)))
   && (Array.range p.numVars).all (fun j =>
        let (lo, hi) := p.colBounds[j]!
-       decide (0 ≤ d.colLower[j]!)
-       && decide (0 ≤ d.colUpper[j]!)
-       && (!lo.isNone || decide (d.colLower[j]! = 0))
-       && (!hi.isNone || decide (d.colUpper[j]! = 0)))
+       decide (0 ≤ d.colLower.toArray[j]!)
+       && decide (0 ≤ d.colUpper.toArray[j]!)
+       && (!lo.isNone || decide (d.colLower.toArray[j]! = 0))
+       && (!hi.isNone || decide (d.colUpper.toArray[j]! = 0)))
 
 /-- Componentwise subtraction of two same-length `Array Rat`. Returns
     `#[]` on length mismatch — that disagrees with `c` in size, which
@@ -149,20 +150,20 @@ def arrayEq (a b : Array Rat) : Bool :=
   decide (a.size = b.size) && (a.zip b).all (fun ⟨x, y⟩ => x == y)
 
 /-- Stationarity check: `Aᵀ(yL − yU) + (zL − zU) = c`. -/
-def isStationary (p : Problem) (d : DualBundle) : Bool :=
-  let aty := evalATy p (arraySub d.rowLower d.rowUpper)
-  let zdiff := arraySub d.colLower d.colUpper
+def isStationary {m n : Nat} (p : Problem) (d : DualBundle m n) : Bool :=
+  let aty := evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray)
+  let zdiff := arraySub d.colLower.toArray d.colUpper.toArray
   arrayEq (Array.zipWith (· + ·) aty zdiff) p.c
 
 /-- Dual feasibility for the optimality certificate. -/
-def isDualFeasible (p : Problem) (d : DualBundle) : Bool :=
+def isDualFeasible {m n : Nat} (p : Problem) (d : DualBundle m n) : Bool :=
   dualNonnegAndZeroWhereAbsent p d && isStationary p d
 
 /-- Farkas (homogeneous) dual feasibility: same shape, but with
     stationarity `Aᵀ(yL − yU) + (zL − zU) = 0` instead of `= c`. -/
-def isFarkasFeasible (p : Problem) (d : DualBundle) : Bool :=
-  let aty := evalATy p (arraySub d.rowLower d.rowUpper)
-  let zdiff := arraySub d.colLower d.colUpper
+def isFarkasFeasible {m n : Nat} (p : Problem) (d : DualBundle m n) : Bool :=
+  let aty := evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray)
+  let zdiff := arraySub d.colLower.toArray d.colUpper.toArray
   dualNonnegAndZeroWhereAbsent p d
   && (Array.zipWith (· + ·) aty zdiff).all (· == 0)
 
@@ -186,18 +187,16 @@ def primalObj (p : Problem) (x : Array Rat) : Rat :=
     `0` on any structural mismatch. The `+ objOffset` for `dualObj`
     and the strict-positive check for `boundCombinationPos` are
     layered on top. -/
-def dualBoundCombination (p : Problem) (d : DualBundle) : Rat :=
+def dualBoundCombination {m n : Nat} (p : Problem) (d : DualBundle m n) : Rat :=
   if problemShapeOk p
-     && decide (d.rowLower.size = p.numConstraints)
-     && decide (d.rowUpper.size = p.numConstraints)
-     && decide (d.colLower.size = p.numVars)
-     && decide (d.colUpper.size = p.numVars) then
+     && decide (m = p.numConstraints)
+     && decide (n = p.numVars) then
     let rowPart := (Array.range p.numConstraints).foldl (fun (acc : Rat) i =>
       let (lo, hi) := p.rowBounds[i]!
-      acc + loContrib lo d.rowLower[i]! - hiContrib hi d.rowUpper[i]!) 0
+      acc + loContrib lo d.rowLower.toArray[i]! - hiContrib hi d.rowUpper.toArray[i]!) 0
     let colPart := (Array.range p.numVars).foldl (fun (acc : Rat) j =>
       let (lo, hi) := p.colBounds[j]!
-      acc + loContrib lo d.colLower[j]! - hiContrib hi d.colUpper[j]!) 0
+      acc + loContrib lo d.colLower.toArray[j]! - hiContrib hi d.colUpper.toArray[j]!) 0
     rowPart + colPart
   else 0
 
@@ -215,7 +214,7 @@ def dualBoundCombination (p : Problem) (d : DualBundle) : Rat :=
     survives is the offset. `checkOptimal` always gates on
     `isDualFeasible` before consulting this value, so the mismatch case
     is unreachable for accepted certificates. -/
-def dualObj (p : Problem) (d : DualBundle) : Rat :=
+def dualObj {m n : Nat} (p : Problem) (d : DualBundle m n) : Rat :=
   dualBoundCombination p d + p.objOffset
 
 /-- The Farkas strict-positivity step: the bound combination must be
@@ -223,21 +222,22 @@ def dualObj (p : Problem) (d : DualBundle) : Rat :=
     without the `objOffset`). Returns `false` on any structural
     mismatch (in which case `dualBoundCombination` returns `0`, which
     is not strictly positive). -/
-def boundCombinationPos (p : Problem) (d : DualBundle) : Bool :=
+def boundCombinationPos {m n : Nat} (p : Problem) (d : DualBundle m n) : Bool :=
   decide (0 < dualBoundCombination p d)
 
 /-! ## Top-level checks for each certificate kind. -/
 
 /-- Optimal certificate: primal feasibility, dual feasibility, and
     strong duality `c·x* + objOffset = dualObj`. -/
-def checkOptimal (p : Problem) (x : Array Rat) (d : DualBundle) : Bool :=
+def checkOptimal {m n : Nat}
+    (p : Problem) (x : Array Rat) (d : DualBundle m n) : Bool :=
   isPrimalFeasible p x
   && isDualFeasible p d
   && primalObj p x == dualObj p d
 
 /-- Infeasibility (Farkas) certificate: homogeneous dual feasibility
     plus strict-positive bound combination. -/
-def checkInfeasible (p : Problem) (d : DualBundle) : Bool :=
+def checkInfeasible {m n : Nat} (p : Problem) (d : DualBundle m n) : Bool :=
   isFarkasFeasible p d
   && boundCombinationPos p d
 

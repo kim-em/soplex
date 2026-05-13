@@ -84,9 +84,9 @@ def verifyOutcome (opts : Options) (denomBudget : Option Nat)
       else
         match sol.certificate.primal, sol.certificate.dual with
         | some x, some d =>
-            if hChk : checkOptimal pCanon x d = true then
+            if hChk : checkOptimal pCanon x.toArray d = true then
               let ⟨hFeas, hOpt⟩ := checkOptimal_sound hChk
-              .optimal x ⟨isFeasible_canonicalize_iff.mp hFeas, hOpt⟩
+              .optimal x.toArray ⟨isFeasible_canonicalize_iff.mp hFeas, hOpt⟩
             else
               .unchecked .optimal
         | _, _ => .unchecked .optimal
@@ -105,8 +105,8 @@ def verifyOutcome (opts : Options) (denomBudget : Option Nat)
       else
         match sol.certificate.primal, sol.certificate.ray with
         | some x, some r =>
-            if hChk : checkUnbounded pCanon x r = true then
-              .unbounded x r (checkUnbounded_sound hChk)
+            if hChk : checkUnbounded pCanon x.toArray r.toArray = true then
+              .unbounded x.toArray r.toArray (checkUnbounded_sound hChk)
             else
               .unchecked .unbounded
         | _, _ => .unchecked .unbounded

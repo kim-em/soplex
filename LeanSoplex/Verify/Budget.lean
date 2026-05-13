@@ -42,31 +42,32 @@ open LeanSoplex
 @[inline] private def arrayWithinBudget (n : Nat) (xs : Array Rat) : Bool :=
   xs.all (fun q => decide (q.bitLen ≤ n))
 
-@[inline] private def optionArrayWithinBudget
-    (n : Nat) (o : Option (Array Rat)) : Bool :=
+@[inline] private def optionVectorWithinBudget {k : Nat}
+    (n : Nat) (o : Option (Vector Rat k)) : Bool :=
   match o with
   | none    => true
-  | some xs => arrayWithinBudget n xs
+  | some xs => arrayWithinBudget n xs.toArray
 
-@[inline] private def dualWithinBudget
-    (n : Nat) (o : Option DualBundle) : Bool :=
+@[inline] private def dualWithinBudget {m n_ : Nat}
+    (n : Nat) (o : Option (DualBundle m n_)) : Bool :=
   match o with
   | none   => true
-  | some d => arrayWithinBudget n d.rowLower
-           && arrayWithinBudget n d.rowUpper
-           && arrayWithinBudget n d.colLower
-           && arrayWithinBudget n d.colUpper
+  | some d => arrayWithinBudget n d.rowLower.toArray
+           && arrayWithinBudget n d.rowUpper.toArray
+           && arrayWithinBudget n d.colLower.toArray
+           && arrayWithinBudget n d.colUpper.toArray
 
 /-- Every populated coordinate of `cert` satisfies `Rat.bitLen ≤ n`,
     where `budget = some n`. `budget = none` disables the check
     (always `true`). Used by `solveVerified` to wrap a `false` as
     `Verified.unchecked .budgetExceeded`. -/
-def certificateWithinBudget (budget : Option Nat) (cert : Certificate) : Bool :=
+def certificateWithinBudget {m n_ : Nat}
+    (budget : Option Nat) (cert : Certificate m n_) : Bool :=
   match budget with
   | none   => true
   | some n =>
-    optionArrayWithinBudget n cert.primal
+    optionVectorWithinBudget n cert.primal
     && dualWithinBudget n cert.dual
-    && optionArrayWithinBudget n cert.ray
+    && optionVectorWithinBudget n cert.ray
 
 end LeanSoplex.Verify

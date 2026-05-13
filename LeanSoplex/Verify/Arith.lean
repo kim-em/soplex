@@ -120,7 +120,7 @@ theorem problemShapeOk_imp
   Prop targets live in `LeanSoplex.Verify.Prop`; the soundness proofs
   in `LeanSoplex.Verify.Sound` consume these bridges. -/
 
-theorem boundCombinationPos_imp {p : Problem} {d : DualBundle}
+theorem boundCombinationPos_imp {m n : Nat} {p : Problem} {d : DualBundle m n}
     (h : boundCombinationPos p d = true) :
     0 < dualBoundCombination p d := by
   unfold boundCombinationPos at h
@@ -139,19 +139,17 @@ private theorem or_not_isNone_decide_eq_true {α} {o : Option α} {P : Prop}
   · exact of_decide_eq_true hP
 
 theorem dualNonnegAndZeroWhereAbsent_imp
-    {p : Problem} {d : DualBundle}
+    {m n : Nat} {p : Problem} {d : DualBundle m n}
     (h : dualNonnegAndZeroWhereAbsent p d = true) :
     DualNonnegZeroWhereAbsent p d := by
   unfold dualNonnegAndZeroWhereAbsent at h
-  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true,
-      Bool.and_eq_true, Bool.and_eq_true] at h
-  obtain ⟨⟨⟨⟨⟨⟨_, hRL⟩, hRU⟩, hCL⟩, hCU⟩, hRow⟩, hCol⟩ := h
+  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true,
+      Bool.and_eq_true] at h
+  obtain ⟨⟨⟨⟨_, hM⟩, hN⟩, hRow⟩, hCol⟩ := h
   rw [Array.all_eq_true] at hRow hCol
   refine
-    { rowLower_size := of_decide_eq_true hRL
-      rowUpper_size := of_decide_eq_true hRU
-      colLower_size := of_decide_eq_true hCL
-      colUpper_size := of_decide_eq_true hCU
+    { numConstraints_eq := of_decide_eq_true hM
+      numVars_eq       := of_decide_eq_true hN
       row_nonneg := ?_
       col_nonneg := ?_
       row_zero_absent := ?_
@@ -837,37 +835,37 @@ theorem evalAx_addSmul_get!
   get a per-index equality, then uses `getElem_zipWith` and
   `arraySub_get!_of_eq` to rewrite both sides into `[i]!` form. -/
 theorem isStationary_imp
-    {p : Problem} {d : DualBundle}
+    {m n : Nat} {p : Problem} {d : DualBundle m n}
     (hShape : ProblemShapeOk p)
     (hDual : DualNonnegZeroWhereAbsent p d)
     (h : isStationary p d = true) :
     StationarityAgainst p d p.c := by
   unfold isStationary at h
   -- Sizes of the inner foldl / zipWith.
-  have hRowEq : d.rowLower.size = d.rowUpper.size :=
+  have hRowEq : d.rowLower.toArray.size = d.rowUpper.toArray.size :=
     hDual.rowLower_size.trans hDual.rowUpper_size.symm
-  have hColEq : d.colLower.size = d.colUpper.size :=
+  have hColEq : d.colLower.toArray.size = d.colUpper.toArray.size :=
     hDual.colLower_size.trans hDual.colUpper_size.symm
-  have hRowSub : (arraySub d.rowLower d.rowUpper).size = p.numConstraints := by
+  have hRowSub : (arraySub d.rowLower.toArray d.rowUpper.toArray).size = p.numConstraints := by
     rw [arraySub_size_of_eq _ _ hRowEq]; exact hDual.rowLower_size
-  have hAty : (evalATy p (arraySub d.rowLower d.rowUpper)).size = p.numVars :=
+  have hAty : (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray)).size = p.numVars :=
     evalATy_size ..
-  have hZdiff : (arraySub d.colLower d.colUpper).size = p.numVars := by
+  have hZdiff : (arraySub d.colLower.toArray d.colUpper.toArray).size = p.numVars := by
     rw [arraySub_size_of_eq _ _ hColEq]; exact hDual.colLower_size
   have hZipSize : (Array.zipWith (fun x y => x + y)
-      (evalATy p (arraySub d.rowLower d.rowUpper))
-      (arraySub d.colLower d.colUpper)).size = p.numVars := by
+      (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray))
+      (arraySub d.colLower.toArray d.colUpper.toArray)).size = p.numVars := by
     rw [Array.size_zipWith, hAty, hZdiff, Nat.min_self]
   intro j hj
   have hjZip : j < (Array.zipWith (fun x y => x + y)
-      (evalATy p (arraySub d.rowLower d.rowUpper))
-      (arraySub d.colLower d.colUpper)).size := by rw [hZipSize]; exact hj
+      (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray))
+      (arraySub d.colLower.toArray d.colUpper.toArray)).size := by rw [hZipSize]; exact hj
   have hEqj := arrayEq_true_imp_eq h j hjZip
   rw [Array.getElem_zipWith] at hEqj
   -- Convert getElem to [_]! at each position.
-  have hjAty : j < (evalATy p (arraySub d.rowLower d.rowUpper)).size := by
+  have hjAty : j < (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray)).size := by
     rw [hAty]; exact hj
-  have hjZdiff : j < (arraySub d.colLower d.colUpper).size := by
+  have hjZdiff : j < (arraySub d.colLower.toArray d.colUpper.toArray).size := by
     rw [hZdiff]; exact hj
   have hjC : j < p.c.size := by rw [hShape.c_size]; exact hj
   rw [← getElem!_pos _ j hjAty, ← getElem!_pos _ j hjZdiff,
@@ -977,7 +975,7 @@ theorem isRecessionRay_imp
     soundness layer can consume `IsFarkasDualFeasible p d` in one
     step. -/
 theorem isFarkasFeasible_imp
-    {p : Problem} {d : DualBundle}
+    {m n : Nat} {p : Problem} {d : DualBundle m n}
     (h : isFarkasFeasible p d = true) :
     IsFarkasDualFeasible p d := by
   unfold isFarkasFeasible at h
@@ -985,17 +983,17 @@ theorem isFarkasFeasible_imp
   obtain ⟨hNonneg, hZero⟩ := h
   have hDual := dualNonnegAndZeroWhereAbsent_imp hNonneg
   -- Sizes.
-  have hRowEq : d.rowLower.size = d.rowUpper.size :=
+  have hRowEq : d.rowLower.toArray.size = d.rowUpper.toArray.size :=
     hDual.rowLower_size.trans hDual.rowUpper_size.symm
-  have hColEq : d.colLower.size = d.colUpper.size :=
+  have hColEq : d.colLower.toArray.size = d.colUpper.toArray.size :=
     hDual.colLower_size.trans hDual.colUpper_size.symm
-  have hAty : (evalATy p (arraySub d.rowLower d.rowUpper)).size = p.numVars :=
+  have hAty : (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray)).size = p.numVars :=
     evalATy_size ..
-  have hZdiff : (arraySub d.colLower d.colUpper).size = p.numVars := by
+  have hZdiff : (arraySub d.colLower.toArray d.colUpper.toArray).size = p.numVars := by
     rw [arraySub_size_of_eq _ _ hColEq]; exact hDual.colLower_size
   have hZipSize : (Array.zipWith (fun x y => x + y)
-      (evalATy p (arraySub d.rowLower d.rowUpper))
-      (arraySub d.colLower d.colUpper)).size = p.numVars := by
+      (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray))
+      (arraySub d.colLower.toArray d.colUpper.toArray)).size = p.numVars := by
     rw [Array.size_zipWith, hAty, hZdiff, Nat.min_self]
   rw [Array.all_eq_true] at hZero
   refine
@@ -1003,16 +1001,16 @@ theorem isFarkasFeasible_imp
       stationarity_zero := ?_ }
   intro j hj
   have hjZip : j < (Array.zipWith (fun x y => x + y)
-      (evalATy p (arraySub d.rowLower d.rowUpper))
-      (arraySub d.colLower d.colUpper)).size := by rw [hZipSize]; exact hj
+      (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray))
+      (arraySub d.colLower.toArray d.colUpper.toArray)).size := by rw [hZipSize]; exact hj
   have hjZ := hZero j hjZip
   rw [Array.getElem_zipWith] at hjZ
   -- hjZ : decide (aty[j] + zdiff[j] = 0) = true (via `· == 0` lifted to decide)
   simp only [beq_iff_eq] at hjZ
   -- Convert getElems to [j]! form.
-  have hjAty : j < (evalATy p (arraySub d.rowLower d.rowUpper)).size := by
+  have hjAty : j < (evalATy p (arraySub d.rowLower.toArray d.rowUpper.toArray)).size := by
     rw [hAty]; exact hj
-  have hjZdiff : j < (arraySub d.colLower d.colUpper).size := by
+  have hjZdiff : j < (arraySub d.colLower.toArray d.colUpper.toArray).size := by
     rw [hZdiff]; exact hj
   rw [← getElem!_pos _ j hjAty, ← getElem!_pos _ j hjZdiff] at hjZ
   rw [arraySub_get!_of_eq _ _ hColEq j (by rw [hDual.colLower_size]; exact hj)]

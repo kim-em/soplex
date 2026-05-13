@@ -94,21 +94,22 @@ inductive OptionError
 
 /-- Canonical lower / upper split for dual multipliers.
 
-    All four arrays are nonnegative and length-matched to the problem;
-    a coordinate is zero whenever the matching bound is `none`. The
-    *signed* dual would be `rowLower − rowUpper` (and similarly for
-    columns), but storing the split is strictly more expressive for
-    ranged constraints, where the dual objective genuinely depends on
-    the decomposition. See `PLAN.md` §"Dual feasibility, concretely". -/
-structure DualBundle where
+    All four vectors are nonnegative and length-matched to the problem
+    (`m` rows, `n` cols); a coordinate is zero whenever the matching
+    bound is `none`. The *signed* dual would be `rowLower − rowUpper`
+    (and similarly for columns), but storing the split is strictly more
+    expressive for ranged constraints, where the dual objective genuinely
+    depends on the decomposition. See `PLAN.md` §"Dual feasibility,
+    concretely". -/
+structure DualBundle (m n : Nat) where
   /-- Multipliers for `rowLoᵢ ≤ (Ax)ᵢ` (one per row). -/
-  rowLower : Array Rat
+  rowLower : Vector Rat m
   /-- Multipliers for `(Ax)ᵢ ≤ rowHiᵢ` (one per row). -/
-  rowUpper : Array Rat
+  rowUpper : Vector Rat m
   /-- Multipliers for `colLoⱼ ≤ xⱼ` (one per column). -/
-  colLower : Array Rat
+  colLower : Vector Rat n
   /-- Multipliers for `xⱼ ≤ colHiⱼ` (one per column). -/
-  colUpper : Array Rat
+  colUpper : Vector Rat n
   deriving Repr, Inhabited
 
 /-- Outcome bucket reported by `solveExact` / `solveVerified`. -/
@@ -136,23 +137,35 @@ inductive SolveStatus
     * anything else — none required
 
     The verifier checks the appropriate combination and accepts /
-    rejects accordingly. See `PLAN.md` §"The three certificates". -/
-structure Certificate where
-  primal : Option (Array Rat)
-  dual   : Option DualBundle
-  ray    : Option (Array Rat)
+    rejects accordingly. See `PLAN.md` §"The three certificates".
+
+    Parameterised by `(m n : Nat)` — the constraint and variable
+    counts — so the primal / ray vectors and the dual bundle all
+    carry their expected lengths in the type. -/
+structure Certificate (m n : Nat) where
+  primal : Option (Vector Rat n)
+  dual   : Option (DualBundle m n)
+  ray    : Option (Vector Rat n)
   deriving Repr, Inhabited
 
 /-- Exact-mode result. `Solution.objective` is always in the
     *caller's original sense* (including `objOffset`), never the
-    internal min-canonical value. -/
+    internal min-canonical value.
+
+    Carries its own `numConstraints` / `numVars` (matching the
+    `Problem` it was produced from) so the embedded `Certificate`
+    can be parameterised by them. The FFI boundary checks that the
+    sizes the C++ side returns match the problem; mismatch becomes
+    `SolveError.bridge`. -/
 structure Solution where
-  status      : SolveStatus
+  numConstraints : Nat
+  numVars        : Nat
+  status         : SolveStatus
   /-- Exact for `status = optimal`; a hint otherwise. -/
-  objective   : Option Rat
-  certificate : Certificate
+  objective      : Option Rat
+  certificate    : Certificate numConstraints numVars
   /-- Captured solver log; `""` when `Options.verbose = false`. -/
-  log         : String
+  log            : String
   deriving Repr, Inhabited
 
 /-- Float-mode result. Kept distinct from `Solution` to prevent
