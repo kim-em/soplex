@@ -52,7 +52,7 @@ jobs:
           ./.lake/build/bin/verify-tests
 
       - name: Build Lean targets
-        run: lake build LeanSoplex soplex-smoke solve-exact-tests solve-float-tests solve-verified-tests
+        run: lake build LeanSoplex soplex-smoke solve-exact-tests solve-float-tests solve-verified-tests solve-compare-tests
 
       - name: Run smoke executable
         run: |
@@ -70,6 +70,9 @@ jobs:
 
       - name: Run solve-verified-tests
         run: ./.lake/build/bin/solve-verified-tests
+
+      - name: Run solve-compare-tests
+        run: ./.lake/build/bin/solve-compare-tests
 
       - name: Build and run accessor-goldens
         run: |
@@ -222,7 +225,7 @@ jobs:
           ./.lake/build/bin/verify-tests
 
       - name: Build Lean targets
-        run: lake build LeanSoplex soplex-smoke solve-exact-tests solve-float-tests solve-verified-tests
+        run: lake build LeanSoplex soplex-smoke solve-exact-tests solve-float-tests solve-verified-tests solve-compare-tests
 
       - name: Run smoke executable
         run: |
@@ -240,6 +243,9 @@ jobs:
 
       - name: Run solve-verified-tests
         run: ./.lake/build/bin/solve-verified-tests
+
+      - name: Run solve-compare-tests
+        run: ./.lake/build/bin/solve-compare-tests
 
       - name: Build and run accessor-goldens
         run: |
@@ -314,7 +320,7 @@ jobs:
         run: |
           set -e
           export PATH="$(paste -sd: .elan-path):$PATH"
-          lake build LeanSoplex soplex-smoke solve-exact-tests solve-float-tests solve-verified-tests
+          lake build LeanSoplex soplex-smoke solve-exact-tests solve-float-tests solve-verified-tests solve-compare-tests
 
           set +e
           ./.lake/build/bin/soplex-smoke.exe > /tmp/smoke.out 2>&1
@@ -339,6 +345,12 @@ jobs:
           set -e
           export PATH="$(paste -sd: .elan-path):$PATH"
           ./.lake/build/bin/solve-verified-tests.exe
+
+      - name: Run solve-compare-tests
+        run: |
+          set -e
+          export PATH="$(paste -sd: .elan-path):$PATH"
+          ./.lake/build/bin/solve-compare-tests.exe
 
       - name: Build and run accessor-goldens
         run: |
