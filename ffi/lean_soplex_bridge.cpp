@@ -424,12 +424,23 @@ static lean_object *mk_certificate(
 }
 
 static lean_object *mk_solution(
-    uint8_t status, lean_object *objectiveOpt, lean_object *cert, const std::string &log) {
-  lean_object *s = lean_alloc_ctor(0, 3, sizeof(uint8_t));
-  lean_ctor_set(s, 0, objectiveOpt);
-  lean_ctor_set(s, 1, cert);
-  lean_ctor_set(s, 2, lean_mk_string(log.c_str()));
-  lean_ctor_set_uint8(s, sizeof(void *) * 3, status);
+    uint32_t numConstraints, uint32_t numVars,
+    uint8_t status, lean_object *objectiveOpt, lean_object *cert,
+    const std::string &log) {
+  // Solution layout (Lean packs scalars at the end):
+  //   boxed 0 = numConstraints : Nat
+  //   boxed 1 = numVars        : Nat
+  //   boxed 2 = objective      : Option Rat
+  //   boxed 3 = certificate    : Certificate numConstraints numVars
+  //   boxed 4 = log            : String
+  //   scalar  = status         : SolveStatus (uint8)
+  lean_object *s = lean_alloc_ctor(0, 5, sizeof(uint8_t));
+  lean_ctor_set(s, 0, lean_unsigned_to_nat(numConstraints));
+  lean_ctor_set(s, 1, lean_unsigned_to_nat(numVars));
+  lean_ctor_set(s, 2, objectiveOpt);
+  lean_ctor_set(s, 3, cert);
+  lean_ctor_set(s, 4, lean_mk_string(log.c_str()));
+  lean_ctor_set_uint8(s, sizeof(void *) * 5, status);
   return s;
 }
 
@@ -664,7 +675,10 @@ extern "C" LEAN_EXPORT lean_obj_res lean_soplex_solve_exact(
     }
 
     lean_object *cert = mk_certificate(primal, dual, ray);
-    lean_object *sol = mk_solution(status, objective, cert, logCap.str());
+    lean_object *sol = mk_solution(
+        static_cast<uint32_t>(input.numConstraints),
+        static_cast<uint32_t>(input.numVars),
+        status, objective, cert, logCap.str());
     return mk_except_ok(sol);
   } catch (const std::exception &e) {
     return mk_except_error(e.what());

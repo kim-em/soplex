@@ -164,9 +164,9 @@ def tOptimalEquality : Outcome :=
     (rowBounds := #[(some 1, some 1)])
     (colBounds := #[(some 0, none), (some 0, none)])
   let x : Array Rat := #[0, 1]
-  let d : DualBundle :=
-    { rowLower := #[1], rowUpper := #[0]
-    , colLower := #[0, 0], colUpper := #[0, 0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[1], rowUpper := #v[0]
+    , colLower := #v[0, 0], colUpper := #v[0, 0] }
   expectTrue (checkOptimal p x d)
 
 /-- `min x  s.t.  1 ≤ x ≤ 3, 0 ≤ x ≤ 2`. Ranged row + boxed column.
@@ -179,9 +179,9 @@ def tOptimalRangedRow : Outcome :=
     (rowBounds := #[(some 1, some 3)])
     (colBounds := #[(some 0, some 2)])
   let x : Array Rat := #[1]
-  let d : DualBundle :=
-    { rowLower := #[1], rowUpper := #[0]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[1], rowUpper := #v[0]
+    , colLower := #v[0], colUpper := #v[0] }
   expectTrue (checkOptimal p x d)
 
 /-- `max x + y  s.t.  x + y ≤ 1, x, y ≥ 0`, canonicalised to
@@ -196,9 +196,9 @@ def tOptimalMaxCanonicalized : Outcome :=
     (colBounds := #[(some 0, none), (some 0, none)])
   let p := canonicalize .maximize pMax        -- negates `c` and `objOffset`
   let x : Array Rat := #[1/2, 1/2]
-  let d : DualBundle :=
-    { rowLower := #[0], rowUpper := #[1]
-    , colLower := #[0, 0], colUpper := #[0, 0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[0], rowUpper := #v[1]
+    , colLower := #v[0, 0], colUpper := #v[0, 0] }
   expectTrue (checkOptimal p x d)
 
 /-! ## `checkInfeasible` — positive cases. -/
@@ -213,9 +213,9 @@ def tInfeasibleRowsOnly : Outcome :=
     (a := #[(0, 0, 1), (1, 0, 1)])
     (rowBounds := #[(some 1, none), (none, some 0)])
     (colBounds := #[(none, none)])
-  let d : DualBundle :=
-    { rowLower := #[1, 0], rowUpper := #[0, 1]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[1, 0], rowUpper := #v[0, 1]
+    , colLower := #v[0], colUpper := #v[0] }
   expectTrue (checkInfeasible p d)
 
 /-- Raw Bool-checker stress test (the LP itself fails `validate` —
@@ -235,9 +235,9 @@ def tInfeasibleColBoundsOnly : Outcome :=
     , c := #[0], objOffset := 0
     , a := #[], rowBounds := #[]
     , colBounds := #[(some 0, some (-1))] }
-  let d : DualBundle :=
-    { rowLower := #[], rowUpper := #[]
-    , colLower := #[1], colUpper := #[1] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[], rowUpper := #v[]
+    , colLower := #v[1], colUpper := #v[1] }
   expectTrue (checkInfeasible p d)
 
 /-- `min 0  s.t.  x ≥ 2, 0 ≤ x ≤ 1`. Row + bounds infeasibility.
@@ -250,9 +250,9 @@ def tInfeasibleRowAndBounds : Outcome :=
     (a := #[(0, 0, 1)])
     (rowBounds := #[(some 2, none)])
     (colBounds := #[(some 0, some 1)])
-  let d : DualBundle :=
-    { rowLower := #[1], rowUpper := #[0]
-    , colLower := #[0], colUpper := #[1] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[1], rowUpper := #v[0]
+    , colLower := #v[0], colUpper := #v[1] }
   expectTrue (checkInfeasible p d)
 
 /-! ## `checkUnbounded` — positive cases. -/
@@ -290,9 +290,9 @@ def tRejectInfeasiblePrimal : Outcome :=
     (rowBounds := #[])
     (colBounds := #[(some 0, none)])
   let x : Array Rat := #[-1]                  -- below lower bound
-  let d : DualBundle :=
-    { rowLower := #[], rowUpper := #[]
-    , colLower := #[1], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[], rowUpper := #v[]
+    , colLower := #v[1], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-- Stationarity off by sign: pick a `d` that satisfies everything else
@@ -304,9 +304,9 @@ def tRejectBadStationarity : Outcome :=
     (rowBounds := #[(some 1, some 1)])
     (colBounds := #[(some 0, none)])
   let x : Array Rat := #[1]
-  let d : DualBundle :=                       -- yL=0,yU=1 gives -1
-    { rowLower := #[0], rowUpper := #[1]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=                       -- yL=0,yU=1 gives -1
+    { rowLower := #v[0], rowUpper := #v[1]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-- Pins the four-vector ranged-row decomposition: same primal as
@@ -323,9 +323,9 @@ def tRejectRangedRowDecomposition : Outcome :=
     (rowBounds := #[(some 1, some 3)])
     (colBounds := #[(some 0, some 2)])
   let x : Array Rat := #[1]
-  let d : DualBundle :=
-    { rowLower := #[2], rowUpper := #[1]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[2], rowUpper := #v[1]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-- `primalObj ≠ dualObj`: take a feasible primal and a feasible dual
@@ -340,9 +340,9 @@ def tRejectObjectiveMismatch : Outcome :=
     (rowBounds := #[(some 1, some 1)])
     (colBounds := #[(some 0, none)])
   let x : Array Rat := #[1]
-  let d : DualBundle :=
-    { rowLower := #[0], rowUpper := #[0]
-    , colLower := #[1], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[0], rowUpper := #v[0]
+    , colLower := #v[1], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-- Farkas with bound combination = 0 (not strict): correctly rejected. -/
@@ -354,9 +354,9 @@ def tRejectFarkasNotStrict : Outcome :=
     (a := #[(0, 0, 1)])
     (rowBounds := #[(some 0, some 1)])
     (colBounds := #[(some 0, none)])
-  let d : DualBundle :=
-    { rowLower := #[0], rowUpper := #[0]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[0], rowUpper := #v[0]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkInfeasible p d)
 
 /-- Recession ray with `c·r = 0` does not certify unboundedness. -/
@@ -380,9 +380,9 @@ def tTotalityMalformedColBounds : Outcome :=
     (rowBounds := #[])
     (colBounds := #[(none, none)])              -- size 1, numVars = 2
   let x : Array Rat := #[0, 0]
-  let d : DualBundle :=
-    { rowLower := #[], rowUpper := #[]
-    , colLower := #[0, 0], colUpper := #[0, 0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[], rowUpper := #v[]
+    , colLower := #v[0, 0], colUpper := #v[0, 0] }
   expectFalse (checkOptimal p x d)
 
 /-- Totality on malformed `Problem`: `rowBounds.size ≠ numConstraints`. -/
@@ -393,9 +393,9 @@ def tTotalityMalformedRowBounds : Outcome :=
     (rowBounds := #[(none, none)])              -- size 1, numConstraints = 2
     (colBounds := #[(none, none)])
   let x : Array Rat := #[0]
-  let d : DualBundle :=
-    { rowLower := #[0, 0], rowUpper := #[0, 0]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[0, 0], rowUpper := #v[0, 0]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-- Totality on out-of-range sparse entry. Without the guard
@@ -408,9 +408,9 @@ def tTotalitySparseOutOfRange : Outcome :=
     (rowBounds := #[(some 0, some 0)])
     (colBounds := #[(none, none)])
   let x : Array Rat := #[0]
-  let d : DualBundle :=
-    { rowLower := #[0], rowUpper := #[0]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[0], rowUpper := #v[0]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-- Totality on `checkInfeasible` with malformed problem. -/
@@ -420,9 +420,9 @@ def tTotalityInfeasibleMalformed : Outcome :=
     (a := #[])
     (rowBounds := #[(none, none)])
     (colBounds := #[])                          -- size 0, numVars = 1
-  let d : DualBundle :=
-    { rowLower := #[1], rowUpper := #[0]
-    , colLower := #[0], colUpper := #[0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[1], rowUpper := #v[0]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkInfeasible p d)
 
 /-- Totality on `checkUnbounded` with malformed problem. -/
@@ -444,9 +444,9 @@ def tTotalityPrimalSizeMismatch : Outcome :=
     (rowBounds := #[])
     (colBounds := #[(none, none), (none, none)])
   let x : Array Rat := #[0]                    -- size 1 ≠ numVars 2
-  let d : DualBundle :=
-    { rowLower := #[], rowUpper := #[]
-    , colLower := #[0, 0], colUpper := #[0, 0] }
+  let d : DualBundle _ _ :=
+    { rowLower := #v[], rowUpper := #v[]
+    , colLower := #v[0, 0], colUpper := #v[0, 0] }
   expectFalse (checkOptimal p x d)
 
 /-- Totality: a size-mismatched DualBundle is rejected. -/
@@ -457,9 +457,13 @@ def tTotalityDualSizeMismatch : Outcome :=
     (rowBounds := #[])
     (colBounds := #[(none, none), (none, none)])
   let x : Array Rat := #[0, 0]
-  let d : DualBundle :=                        -- colLower size 1 ≠ numVars 2
-    { rowLower := #[], rowUpper := #[]
-    , colLower := #[0], colUpper := #[0, 0] }
+  -- DualBundle 0 1 against a numVars=2 problem; the `n = p.numVars`
+  -- guard in `dualNonnegAndZeroWhereAbsent` rejects the mismatch.
+  -- (The original test used a DualBundle whose own four arrays
+  -- disagreed in size — no longer expressible with `Vector Rat n`.)
+  let d : DualBundle 0 1 :=
+    { rowLower := #v[], rowUpper := #v[]
+    , colLower := #v[0], colUpper := #v[0] }
   expectFalse (checkOptimal p x d)
 
 /-! ## Denominator-budget check. -/
@@ -467,13 +471,13 @@ def tTotalityDualSizeMismatch : Outcome :=
 /-- A representative small certificate: single-digit numerators and
     denominators throughout. `Rat.bitLen` is at most a handful of bits
     on every coordinate, so a budget of `10000` is wildly generous. -/
-private def smallCertificate : Certificate :=
-  { primal := some #[(1 : Rat) / 2, 3, -7 / 4]
+private def smallCertificate : Certificate 2 3 :=
+  { primal := some #v[(1 : Rat) / 2, 3, -7 / 4]
     dual := some
-      { rowLower := #[0, 1]
-        rowUpper := #[0, 0]
-        colLower := #[(2 : Rat) / 3, 0, 0]
-        colUpper := #[0, 0, 0] }
+      { rowLower := #v[0, 1]
+        rowUpper := #v[0, 0]
+        colLower := #v[(2 : Rat) / 3, 0, 0]
+        colUpper := #v[0, 0, 0] }
     ray := none }
 
 def tBudgetSmallPasses : Outcome :=
@@ -487,8 +491,8 @@ def tBudgetNoneAlwaysPasses : Outcome :=
     21 + 7 = 28, well over the budget of 5. -/
 def tBudgetLargeRejected : Outcome :=
   let big : Rat := (1234567 : Rat) / 89
-  let cert : Certificate :=
-    { primal := some #[big], dual := none, ray := none }
+  let cert : Certificate 0 1 :=
+    { primal := some #v[big], dual := none, ray := none }
   expectFalse (certificateWithinBudget (some 5) cert)
 
 /-- Pin the `Rat.bitLen` convention: zero has `num = 0` and `den = 1`,

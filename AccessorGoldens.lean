@@ -48,16 +48,17 @@ structure CoreCase where
   expectedX : Option (Array Rat)
   /-- Optimal `c · x` for the canonical (min) form. -/
   expectedObjCanon : Rat
-  expectedDual : DualBundle
+  expectedDual : DualBundle numConstraints numVars
 
 private def noPresolve (sense : ObjSense) : Options :=
   { ({} : Options) with sense, presolve := false, verbose := false, precisionBoost := false }
 
-private def dualEq (a b : DualBundle) : Bool :=
-  a.rowLower == b.rowLower
-    && a.rowUpper == b.rowUpper
-    && a.colLower == b.colLower
-    && a.colUpper == b.colUpper
+private def dualEq {m₁ n₁ m₂ n₂ : Nat}
+    (a : DualBundle m₁ n₁) (b : DualBundle m₂ n₂) : Bool :=
+  a.rowLower.toArray == b.rowLower.toArray
+    && a.rowUpper.toArray == b.rowUpper.toArray
+    && a.colLower.toArray == b.colLower.toArray
+    && a.colUpper.toArray == b.colUpper.toArray
 
 /-- Run one core case in a given sense. For `.maximize` the
     user-facing `c` is negated so that the canonical (post-
@@ -92,13 +93,13 @@ private def runOne (case : CoreCase) (sense : ObjSense) : Outcome :=
         let parts : Array String := Id.run do
           let mut errs : Array String := #[]
           match case.expectedX with
-          | some ex => if x != ex then errs := errs.push s!"x: expected {repr ex}, got {repr x}"
+          | some ex => if x.toArray != ex then errs := errs.push s!"x: expected {repr ex}, got {repr x}"
           | none => pure ()
           if obj != expectedObjUser then
             errs := errs.push s!"obj: expected {repr expectedObjUser}, got {repr obj}"
           if !dualEq d case.expectedDual then
             errs := errs.push s!"dual: expected {repr case.expectedDual}, got {repr d}"
-          if !checkOptimal pCanon x d then
+          if !checkOptimal pCanon x.toArray d then
             errs := errs.push s!"checkOptimal returned false on pCanon={repr pCanon}, x={repr x}, d={repr d}"
           pure errs
         if parts.isEmpty then .ok
@@ -127,8 +128,8 @@ private def runOne (case : CoreCase) (sense : ObjSense) : Outcome :=
 -/
 
 /-- Helper: a `DualBundle` for one-row one-col problems. -/
-private def db (rL rU cL cU : Rat) : DualBundle :=
-  { rowLower := #[rL], rowUpper := #[rU], colLower := #[cL], colUpper := #[cU] }
+private def db (rL rU cL cU : Rat) : DualBundle 1 1 :=
+  { rowLower := #v[rL], rowUpper := #v[rU], colLower := #v[cL], colUpper := #v[cU] }
 
 private def A1 : Array (Nat × Nat × Rat) := #[(0, 0, 1)]
 
@@ -408,8 +409,8 @@ private def C_two_row_dual : CoreCase :=
   , expectedX := some #[1, 2]
   , expectedObjCanon := 5
   , expectedDual :=
-      { rowLower := #[2, 0], rowUpper := #[0, 1]
-      , colLower := #[0, 0], colUpper := #[0, 0] } }
+      { rowLower := #v[2, 0], rowUpper := #v[0, 1]
+      , colLower := #v[0, 0], colUpper := #v[0, 0] } }
 
 /-- Two variables, one lower-only row, one boxed column, one
     lower-only column, `c = (1, 1)`:
@@ -446,8 +447,8 @@ private def C_two_var_mixed : CoreCase :=
   , expectedX := some #[1, 1]
   , expectedObjCanon := 2
   , expectedDual :=
-      { rowLower := #[1], rowUpper := #[0]
-      , colLower := #[0, 0], colUpper := #[0, 0] } }
+      { rowLower := #v[1], rowUpper := #v[0]
+      , colLower := #v[0, 0], colUpper := #v[0, 0] } }
 
 private def coreCases : Array CoreCase := #[
   C_free_free, C_free_fixed, C_free_lo, C_free_hi, C_free_boxed,

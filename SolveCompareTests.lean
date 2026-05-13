@@ -60,7 +60,7 @@ private def tFloatRoundsButExactVerifies (_ : Unit) : Outcome :=
             (exactObj = exactRhs &&
              ex0 = exactRhs &&
              vx = #[exactRhs] &&
-             checkOptimal (canonicalize noPresolve.sense vs.normalized) ex d &&
+             checkOptimal (canonicalize noPresolve.sense vs.normalized) ex.toArray d &&
              gap > (1 : Rat) / 10)
             (s!"expected exact RHS and float gap > 0.1; " ++
              s!"float={fx0}, exactObj={exactObj}, exactPrimal={ex0}, gap={gap}")

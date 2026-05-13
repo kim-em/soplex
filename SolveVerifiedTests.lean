@@ -191,28 +191,31 @@ private def trivialProblem : Problem :=
   mkProblem 1 0 (c := #[0]) (a := #[]) (rowBounds := #[])
     (colBounds := #[(some 0, none)])
 
-private def emptyCert : Certificate :=
+private def emptyCert : Certificate 0 1 :=
   { primal := none, dual := none, ray := none }
 
 /-- `.optimal` status with no primal certificate: missing-field path. -/
 private def tMissingCertOptimal (_ : Unit) : Outcome :=
   let sol : Solution :=
-    { status := .optimal, objective := none, certificate := emptyCert, log := "" }
+    { numConstraints := 0, numVars := 1
+      status := .optimal, objective := none, certificate := emptyCert, log := "" }
   let v := verifyOutcome baseOpts none trivialProblem sol
   wantsUnchecked .optimal v
 
 /-- `.infeasible` status with no dual certificate. -/
 private def tMissingCertInfeasible (_ : Unit) : Outcome :=
   let sol : Solution :=
-    { status := .infeasible, objective := none, certificate := emptyCert, log := "" }
+    { numConstraints := 0, numVars := 1
+      status := .infeasible, objective := none, certificate := emptyCert, log := "" }
   let v := verifyOutcome baseOpts none trivialProblem sol
   wantsUnchecked .infeasible v
 
 /-- `.unbounded` status with no ray. -/
 private def tMissingCertUnbounded (_ : Unit) : Outcome :=
   let sol : Solution :=
-    { status := .unbounded, objective := none
-      certificate := { primal := some #[0], dual := none, ray := none }
+    { numConstraints := 0, numVars := 1
+      status := .unbounded, objective := none
+      certificate := { primal := some #v[0], dual := none, ray := none }
       log := "" }
   let v := verifyOutcome baseOpts none trivialProblem sol
   wantsUnchecked .unbounded v
@@ -221,12 +224,13 @@ private def tMissingCertUnbounded (_ : Unit) : Outcome :=
     `checkOptimal` rejects. The driver returns `.unchecked .optimal`
     rather than fabricating a proof. -/
 private def tFailedCheckOptimal (_ : Unit) : Outcome :=
-  let bogusDual : DualBundle :=
-    { rowLower := #[], rowUpper := #[]
-      colLower := #[0], colUpper := #[0] }
+  let bogusDual : DualBundle 0 1 :=
+    { rowLower := #v[], rowUpper := #v[]
+      colLower := #v[0], colUpper := #v[0] }
   let sol : Solution :=
-    { status := .optimal, objective := none
-      certificate := { primal := some #[-1], dual := some bogusDual, ray := none }
+    { numConstraints := 0, numVars := 1
+      status := .optimal, objective := none
+      certificate := { primal := some #v[-1], dual := some bogusDual, ray := none }
       log := "" }
   let v := verifyOutcome baseOpts none trivialProblem sol
   wantsUnchecked .optimal v
@@ -236,8 +240,9 @@ private def tFailedCheckOptimal (_ : Unit) : Outcome :=
     check is gated on a terminal status, not applied unconditionally. -/
 private def tNonTerminalPreservesStatus (_ : Unit) : Outcome :=
   let sol : Solution :=
-    { status := .timeLimit, objective := none
-      certificate := { primal := some #[(1234567 : Rat) / 89], dual := none, ray := none }
+    { numConstraints := 0, numVars := 1
+      status := .timeLimit, objective := none
+      certificate := { primal := some #v[(1234567 : Rat) / 89], dual := none, ray := none }
       log := "" }
   let v := verifyOutcome baseOpts (some 1) trivialProblem sol
   wantsUnchecked .timeLimit v
