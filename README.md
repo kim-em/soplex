@@ -25,26 +25,24 @@ System dependencies:
 | macOS    | `brew install gmp boost cmake ninja` |
 | Windows  | MSYS2 `mingw-w64-x86_64-{gcc,cmake,ninja,make,gmp,boost}` |
 
-Clone with submodules and run the SoPlex build script once, then `lake
-build`:
+Clone with submodules and build through Lake:
 
 ```bash
 git clone --recurse-submodules https://github.com/kim-em/lean-soplex
 cd lean-soplex
-# Windows MSYS2 MINGW64 only: stage mingw runtime archives once.
-# Skip on Linux / macOS.
-[ "$OSTYPE" = "msys" ] && ./soplex-ffi/scripts/stage-mingw-libs.sh
-./soplex-ffi/scripts/build-soplex.sh    # compiles SoPlex via its bundled CMake
-lake build ffi-check      # builds the Lean binding + smoke test
-./.lake/build/bin/ffi-check
+lake exe ffi-check
 ```
+
+If you cloned without submodules, Lake stops with a diagnostic asking
+you to run `git submodule update --init --recursive`.
 
 `ffi-check` prints SoPlex's version, solves a toy LP, and exits 0
 on success.
 
-The first `build-soplex.sh` invocation is slow (~1–3 min to compile
-SoPlex). Subsequent runs are nearly instant — CMake reuses its cache,
-and Lake only recompiles the bridge if its `.cpp` files change.
+The first Lake build is slow (~1–3 min) because the `soplex-ffi`
+lakefile configures and compiles vendored SoPlex with CMake. Subsequent
+runs are nearly instant: CMake reuses its cache, and Lake only rebuilds
+the bridge or extracted SoPlex objects when their inputs change.
 
 ## Trust model
 
@@ -101,7 +99,6 @@ Soplex/Verify.lean            # pure-Lean certificate checker
 Main.lean                     # `ffi-check` executable
 lakefile.lean                 # high-level Lake package
 soplex-ffi/lakefile.lean      # low-level Lake package with extern_lib
-soplex-ffi/scripts/build-soplex.sh # invokes SoPlex's CMake
 scripts/install-toolchain.sh  # elan + GitHub-fallback toolchain installer
 .github/workflows/ci.yml      # Linux + macOS + Windows CI matrix
 ```

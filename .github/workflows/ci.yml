@@ -43,9 +43,6 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
-      - name: Build SoPlex
-        run: ./soplex-ffi/scripts/build-soplex.sh
-
       - name: Build and run verify-tests
         run: |
           lake build verify-tests
@@ -92,10 +89,6 @@ jobs:
     # make findings block merge once the job has been green for a while.
     continue-on-error: true
     env:
-      # `soplex-ffi/scripts/build-soplex.sh` reads this to instrument SoPlex's own
-      # .o files; the lakefile's `get_config?` opt-in handles the bridge
-      # and exe link. Both must be set for a consistent sanitized build.
-      LEAN_SOPLEX_SANITIZE: "1"
       # LSan would otherwise report Lean-runtime allocations that
       # legitimately survive process exit. ASan's UAF / OOB checks are
       # the value we want here.
@@ -150,9 +143,6 @@ jobs:
       - name: Set UBSAN_OPTIONS with workspace-rooted suppressions
         run: |
           echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/tests/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
-
-      - name: Build SoPlex (sanitized)
-        run: ./soplex-ffi/scripts/build-soplex.sh
 
       - name: Build and run verify-tests (sanitized)
         run: |
@@ -227,9 +217,6 @@ jobs:
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
-
-      - name: Build SoPlex
-        run: ./soplex-ffi/scripts/build-soplex.sh
 
       - name: Build and run verify-tests
         run: |
@@ -308,18 +295,6 @@ jobs:
           ./scripts/install-toolchain.sh
           echo "$ELAN_DIR_MSYS/bin" > .elan-path
           echo "$MINGW_PREFIX/bin" >> .elan-path
-
-      - name: Stage mingw runtime libraries
-        run: |
-          set -e
-          ./soplex-ffi/scripts/stage-mingw-libs.sh
-          ls -la soplex-ffi/vendor/mingw-libs/
-
-      - name: Build SoPlex
-        run: |
-          set -e
-          export PATH="$(paste -sd: .elan-path):$PATH"
-          ./soplex-ffi/scripts/build-soplex.sh
 
       - name: Build and run verify-tests
         run: |

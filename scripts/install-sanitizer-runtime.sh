@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Plant LLVM compiler-rt sanitizer archives into Lean's bundled clang
-# so a `LEAN_SOPLEX_SANITIZE=1 lake build -Ksanitize=1 …` link can find
+# so a `lake build -Ksanitize=1 …` link can find
 # `libclang_rt.asan_static.a` and friends.
 #
 # Lean ships clang without compiler-rt's sanitizer runtimes, and the
