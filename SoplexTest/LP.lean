@@ -20,6 +20,9 @@ example (x : Rat) (_h : x ≤ 0) : x < 1 := by
 example (x y : Rat) (_h : (1 / 2 : Rat) * x + y ≤ 1) : x + 2 * y ≤ 2 := by
   lp
 
+example (x : Rat) (_h : (3 : Rat) * x ≤ 6) : x ≤ 2 := by
+  lp
+
 example (a : Rat) (_h : a ≤ 0 ∧ 0 ≤ a) : a = 0 := by
   lp
 

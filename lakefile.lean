@@ -8,7 +8,7 @@ open System Lake DSL
 -/
 
 require SoplexFFI from git "https://github.com/kim-em/soplex-ffi" @
-  "979c95fd7f4fc59525d695ccc088b705d3dfaaf0"
+  "813e594775405e121fba79effc907db065e6a511"
 
 def sanitizerEnabled : Bool :=
   match get_config? sanitize with
