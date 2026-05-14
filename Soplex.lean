@@ -3,3 +3,4 @@
 -/
 
 import Soplex.Basic
+import Soplex.Tactic.LP
