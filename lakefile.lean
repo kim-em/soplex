@@ -83,3 +83,6 @@ lean_exe «file-io-tests» where
 @[test_driver]
 lean_exe «test-runner» where
   root := `SoplexTest.Runner
+
+lean_exe «quickstart-example» where
+  root := `QuickstartExample

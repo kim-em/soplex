@@ -42,7 +42,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex ffi-check
+        run: lake build Soplex ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -51,6 +51,12 @@ jobs:
           rc=$?
           tail -20 /tmp/ffi-check.out
           exit $rc
+
+      - name: Run quickstart-example (README example, output asserted)
+        run: |
+          out="$(./.lake/build/bin/quickstart-example)"
+          echo "$out"
+          echo "$out" | grep -Fqx 'optimal x = #[2, 6]'
 
       - name: lake test
         run: lake test
@@ -122,7 +128,7 @@ jobs:
           echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/tests/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
 
       - name: Build sanitized Lean targets
-        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 Soplex ffi-check
+        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 Soplex ffi-check quickstart-example
 
       - name: Run ffi-check under ASan/UBSan
         run: |
@@ -131,6 +137,12 @@ jobs:
           rc=$?
           tail -40 /tmp/ffi-check.out
           exit $rc
+
+      - name: Run quickstart-example under ASan/UBSan (output asserted)
+        run: |
+          out="$(./.lake/build/bin/quickstart-example)"
+          echo "$out"
+          echo "$out" | grep -Fqx 'optimal x = #[2, 6]'
 
       - name: lake test (sanitized)
         run: LD_PRELOAD="$ASAN_RUNTIME" lake -Ksanitize=1 test -- -Ksanitize=1
@@ -174,7 +186,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex ffi-check
+        run: lake build Soplex ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -183,6 +195,12 @@ jobs:
           rc=$?
           tail -20 /tmp/ffi-check.out
           exit $rc
+
+      - name: Run quickstart-example (README example, output asserted)
+        run: |
+          out="$(./.lake/build/bin/quickstart-example)"
+          echo "$out"
+          echo "$out" | grep -Fqx 'optimal x = #[2, 6]'
 
       - name: lake test
         run: lake test
@@ -229,13 +247,21 @@ jobs:
         run: |
           set -e
           export PATH="$(paste -sd: .elan-path):$PATH"
-          lake build Soplex ffi-check
+          lake build Soplex ffi-check quickstart-example
 
           set +e
           ./.lake/build/bin/ffi-check.exe > /tmp/ffi-check.out 2>&1
           rc=$?
           tail -20 /tmp/ffi-check.out
           exit $rc
+
+      - name: Run quickstart-example (README example, output asserted)
+        run: |
+          set -e
+          export PATH="$(paste -sd: .elan-path):$PATH"
+          out="$(./.lake/build/bin/quickstart-example.exe)"
+          echo "$out"
+          echo "$out" | grep -Fqx 'optimal x = #[2, 6]'
 
       - name: lake test
         run: |
