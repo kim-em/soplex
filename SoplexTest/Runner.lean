@@ -18,7 +18,8 @@ def testExes : Array String := #[
 ]
 
 def leanProbes : Array String := #[
-  "SoplexTest/FFIProbe.lean"
+  "SoplexTest/FFIProbe.lean",
+  "SoplexTest/LP.lean"
 ]
 
 def binPath (name : String) : System.FilePath :=
