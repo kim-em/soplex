@@ -531,6 +531,11 @@ private theorem evalAx_get_eq_dot_of_evalATy_unit
     (unitVector_size m i.val) hX]
   rw [hCoeffs]
 
+/-- Index-congruence for `Array.getElem!`. Used to project a single row's
+matrix fact out of one shared `(denseMatrix p = litMatrix)` proof. -/
+private theorem array_get!_congr {α : Type u} [Inhabited α] {a b : Array α}
+    (h : a = b) (i : Nat) : a[i]! = b[i]! := by rw [h]
+
 /-- Bundle `AffCert.sound_at` + `evalAx_get_eq_dot_of_evalATy_unit` + `rowUpper_of_linEval`
 into one theorem application per row, halving the `mkAppM` work in `mkFeasProof`. -/
 private theorem rowUpper_of_AffCert
@@ -542,6 +547,25 @@ private theorem rowUpper_of_AffCert
     (evalAx p y)[i.val]! ≤ bound := by
   have hAx : (evalAx p y)[i.val]! = dot (cert.coeffs n) y :=
     evalAx_get_eq_dot_of_evalATy_unit p y i (cert.coeffs n) hValues hCoeffs
+  have hLinEval : e = linEval (cert.coeffs n) y cert.offset :=
+    AffCert.sound_at cert y n hValues hEval
+  exact rowUpper_of_linEval hRow hLinEval hAx hBound
+
+/-- Variant of `rowUpper_of_AffCert` that consumes a single dense-matrix row
+fact `hRowCoeffs : (denseMatrix p)[i.val]! = cert.coeffs n` instead of the
+expensive per-row `evalATy = cert.coeffs n` decidable equality. The caller
+should derive `hRowCoeffs` from one `mkDecideProof (denseMatrix p = litMatrix)`
+shared across all rows, eliminating the per-row matrix fold from kernel
+reduction. -/
+private theorem rowUpper_of_AffCert_denseMatrix
+    {m n : Nat} {p : Problem m n} {y : Array Rat} {bound : Rat} {e : Rat}
+    (cert : AffCert) (hValues : y.size = n) (i : Fin m)
+    (hRowCoeffs : (denseMatrix p)[i.val]! = cert.coeffs n)
+    (hBound : bound = -cert.offset)
+    (hRow : e ≤ 0) (hEval : e = cert.eval y) :
+    (evalAx p y)[i.val]! ≤ bound := by
+  have hAx : (evalAx p y)[i.val]! = dot (cert.coeffs n) y := by
+    rw [evalAx_get_eq_dot_denseMatrix p y hValues i, hRowCoeffs]
   have hLinEval : e = linEval (cert.coeffs n) y cert.offset :=
     AffCert.sound_at cert y n hValues hEval
   exact rowUpper_of_linEval hRow hLinEval hAx hBound
@@ -1184,40 +1208,60 @@ private def mkFeasProof (rows : Array Row) (fixedRows : Array FixedLin)
   let rowBoundsEqForall ← mkRowBoundsEqForallType pExpr boundsVecExpr m
   let hRowBounds ← mkDecideProof rowBoundsEqForall
   let evalAxExpr ← mkAppM ``evalAx #[pExpr, yArrayExpr]
-  let mut upperBranches := #[]
   let mExpr := toExpr m
   let nExpr := toExpr n
-  for h : i in [0:fixedRows.size] do
-    let fixed := fixedRows[i]
-    let row ←
-      if hrow : i < rows.size then
-        pure rows[i]
-      else
-        throwError "lp: internal row proof count mismatch"
-    let finExpr := mkFinExpr i m (by simpa [m] using h.upper)
-    let coeffsExpr := mkAffCertCoeffsExpr n fixed.certExpr
-    let offsetExpr := mkAffCertOffsetExpr fixed.certExpr
-    let unitExpr := mkUnitVectorExpr m i
-    let evalATyExpr := mkApp4 (mkConst ``evalATy) mExpr nExpr pExpr unitExpr
-    let hCoeffs ← mkDecideProof (← mkEq evalATyExpr coeffsExpr)
-    let rowProof ← row.proof
-    let boundExpr ← mkVectorGet boundsVecExpr finExpr
-    let negOffsetExpr := mkRatNegExpr offsetExpr
-    let hBound ← mkDecideProof (← mkEq boundExpr negOffsetExpr)
-    let hUpper := mkAppN (mkConst ``rowUpper_of_AffCert)
-      #[mExpr, nExpr, pExpr, yArrayExpr, boundExpr, fixed.expr,
-        fixed.certExpr, hYSize, finExpr, hCoeffs, hBound, rowProof, fixed.evalProof]
-    upperBranches := upperBranches.push hUpper
-  let hUpperFn ← mkFinCasesFunction m
-    (fun i => do
-      let idx ← mkAppM ``Fin.val #[i]
-      let lhs ← mkAppM ``GetElem?.getElem! #[evalAxExpr, idx]
-      let rhs ← mkVectorGet boundsVecExpr i
-      mkAppM ``LE.le #[lhs, rhs])
-    upperBranches
-  let hRows ← mkAppM ``RowBoundsSatisfied.ofUpperVector
-    #[pExpr, yArrayExpr, boundsVecExpr, hRowBounds, hUpperFn]
-  mkAppM ``IsFeasible.ofBounds #[hCols, hRows]
+  -- Compute the literal dense matrix from the parsed rows' numeric coefficients.
+  let arrayRatType := mkApp (mkConst ``Array [.zero]) ratType
+  let litMatrixVal : Array (Array Rat) := fixedRows.map (·.coeffs)
+  let litMatrixExpr : Expr := toExpr litMatrixVal
+  -- denseMatrix p
+  let denseMatrixExpr := mkApp3 (mkConst ``denseMatrix) mExpr nExpr pExpr
+  let denseEqType ← mkEq denseMatrixExpr litMatrixExpr
+  let hDenseEqProof ← mkDecideProof denseEqType
+  -- Build the row branches inside a `let`-binding for hDenseEq so the
+  -- expensive `mkDecideProof` proof term appears exactly once in the
+  -- final proof (kernel reduces `denseMatrix p` once across all m rows).
+  let arrayInhabited := mkApp (mkConst ``Array.instInhabited [.zero]) ratType
+  withLetDecl `hDenseEq denseEqType hDenseEqProof fun hDenseFV => do
+    let mut upperBranches := #[]
+    for h : i in [0:fixedRows.size] do
+      let fixed := fixedRows[i]
+      let row ←
+        if hrow : i < rows.size then
+          pure rows[i]
+        else
+          throwError "lp: internal row proof count mismatch"
+      let finExpr := mkFinExpr i m (by simpa [m] using h.upper)
+      let coeffsExpr := mkAffCertCoeffsExpr n fixed.certExpr
+      let offsetExpr := mkAffCertOffsetExpr fixed.certExpr
+      -- hMatrixPart : (denseMatrix p)[i]! = litMatrix[i]!
+      let hMatrixPart := mkAppN (mkConst ``array_get!_congr [.zero])
+        #[arrayRatType, arrayInhabited,
+          denseMatrixExpr, litMatrixExpr, hDenseFV, toExpr i]
+      -- litMatrix[i]! as Expr (for the cert decide RHS lookup).
+      let litRowExpr ← mkAppM ``GetElem?.getElem! #[litMatrixExpr, toExpr i]
+      -- hCertPart : litMatrix[i]! = cert.coeffs n. Per-row reduction of cert.coeffs.
+      let hCertPart ← mkDecideProof (← mkEq litRowExpr coeffsExpr)
+      let hRowCoeffs ← mkAppM ``Eq.trans #[hMatrixPart, hCertPart]
+      let rowProof ← row.proof
+      let boundExpr ← mkVectorGet boundsVecExpr finExpr
+      let negOffsetExpr := mkRatNegExpr offsetExpr
+      let hBound ← mkDecideProof (← mkEq boundExpr negOffsetExpr)
+      let hUpper := mkAppN (mkConst ``rowUpper_of_AffCert_denseMatrix)
+        #[mExpr, nExpr, pExpr, yArrayExpr, boundExpr, fixed.expr,
+          fixed.certExpr, hYSize, finExpr, hRowCoeffs, hBound, rowProof, fixed.evalProof]
+      upperBranches := upperBranches.push hUpper
+    let hUpperFn ← mkFinCasesFunction m
+      (fun i => do
+        let idx ← mkAppM ``Fin.val #[i]
+        let lhs ← mkAppM ``GetElem?.getElem! #[evalAxExpr, idx]
+        let rhs ← mkVectorGet boundsVecExpr i
+        mkAppM ``LE.le #[lhs, rhs])
+      upperBranches
+    let hRows ← mkAppM ``RowBoundsSatisfied.ofUpperVector
+      #[pExpr, yArrayExpr, boundsVecExpr, hRowBounds, hUpperFn]
+    let result ← mkAppM ``IsFeasible.ofBounds #[hCols, hRows]
+    mkLetFVars #[hDenseFV] result
 
 private def proveEntailed (rows : Array Row) (strict : Bool)
     (vars : Array FVarId) (lhs rhs : Expr) : TacticM Expr := do
