@@ -5,7 +5,25 @@ Stage 1 `lp` tactic probes for affine `Rat` goals with non-strict
 hypotheses.
 -/
 
+-- Regression for issue #56: these two-row certificates should verify
+-- after the solver returns `optimal`, including constants that used to
+-- fall through as `.unchecked .optimal`.
 example (a b : Rat) (_h₁ : 2 * a + b ≤ 5) (_h₂ : a - b ≤ 1) : 3 * a ≤ 6 := by
+  lp
+
+example (a b : Rat) (_h₁ : 2 * a + b ≤ 2) (_h₂ : a - b ≤ 1) : 3 * a ≤ 3 := by
+  lp
+
+example (a b : Rat) (_h₁ : 2 * a + b ≤ 4) (_h₂ : a - b ≤ 1) : 3 * a ≤ 5 := by
+  lp
+
+example (a b : Rat) (_h₁ : 2 * a + b ≤ 1) (_h₂ : a - b ≤ 1) : 3 * a ≤ 2 := by
+  lp
+
+example (a b : Rat) (_h₁ : 2 * a + b ≤ 3) (_h₂ : a - b ≤ 1) : 3 * a ≤ 4 := by
+  lp
+
+example (a b : Rat) (_h₁ : 2 * a + b ≤ 10) (_h₂ : a - b ≤ 1) : 3 * a ≤ 11 := by
   lp
 
 example (a b : Rat) (_h₁ : 5 ≥ 2 * a + b) (_h₂ : 1 ≥ a - b) : 6 ≥ 3 * a := by
