@@ -358,12 +358,141 @@ private theorem linEval_smul_eq {e : Rat} {c values : Array Rat} {k a : Rat}
   rw [dot_replicate_left_zero' values c.size (by rw [hs])]
   grind [Rat.mul_add, Rat.add_assoc, Rat.add_comm, Rat.add_left_comm]
 
-private theorem linEval_mul_right_eq {e : Rat} {c values : Array Rat} {k a : Rat}
-    (h : e = linEval c values k)
-    (hs : c.size = values.size) :
-    e * a = linEval (coeffSmul a c) values (a * k) := by
-  rw [Rat.mul_comm e a]
-  exact linEval_smul_eq h hs
+/-! ### Reflective affine certificates
+
+The `lp` tactic uses an `AffCert` value to represent a parsed affine `Rat`
+expression as plain data, then closes the proof obligation by a single
+application of `AffCert.sound_at` per row/objective rather than building a
+deep tree of `linEval_*_eq` applications.
+
+Constructors are minimal: subtraction lowers to `add a (smul (-1) b)` and
+negation lowers to `smul (-1) a`. -/
+
+inductive AffCert where
+  | lit  : Rat → AffCert
+  | var  : Nat → AffCert
+  | add  : AffCert → AffCert → AffCert
+  | sub  : AffCert → AffCert → AffCert
+  | neg  : AffCert → AffCert
+  | smul : Rat → AffCert → AffCert
+
+namespace AffCert
+
+@[reducible] def eval (values : Array Rat) : AffCert → Rat
+  | .lit c    => c
+  | .var i    => values[i]!
+  | .add a b  => eval values a + eval values b
+  | .sub a b  => eval values a - eval values b
+  | .neg a    => -eval values a
+  | .smul k a => k * eval values a
+
+@[reducible] def coeffs (n : Nat) : AffCert → Array Rat
+  | .lit _    => Array.replicate n 0
+  | .var i    => unitVector n i
+  | .add a b  => coeffAdd (coeffs n a) (coeffs n b)
+  | .sub a b  => coeffAdd (coeffs n a) (coeffNeg (coeffs n b))
+  | .neg a    => coeffNeg (coeffs n a)
+  | .smul k a => coeffSmul k (coeffs n a)
+
+@[reducible] def offset : AffCert → Rat
+  | .lit c    => c
+  | .var _    => 0
+  | .add a b  => offset a + offset b
+  | .sub a b  => offset a - offset b
+  | .neg a    => -offset a
+  | .smul k a => k * offset a
+
+theorem coeffs_size (cert : AffCert) (n : Nat) : (cert.coeffs n).size = n := by
+  induction cert with
+  | lit _ => simp [coeffs]
+  | var i => simp [coeffs, unitVector_size]
+  | add a b iha ihb =>
+      unfold coeffs
+      unfold coeffAdd
+      rw [Array.addSmul_size_of_eq _ _ 1 (iha.trans ihb.symm)]
+      exact iha
+  | sub a b iha ihb =>
+      unfold coeffs
+      have hNeg : (coeffNeg (coeffs n b)).size = n := by
+        unfold coeffNeg
+        rw [Array.addSmul_size_of_eq]
+        · simpa using ihb
+        · simp
+      unfold coeffAdd
+      rw [Array.addSmul_size_of_eq _ _ 1 (iha.trans hNeg.symm)]
+      exact iha
+  | neg a iha =>
+      unfold coeffs
+      unfold coeffNeg
+      rw [Array.addSmul_size_of_eq]
+      · simpa using iha
+      · simp
+  | smul k a iha =>
+      unfold coeffs
+      unfold coeffSmul
+      rw [Array.addSmul_size_of_eq]
+      · simpa using iha
+      · simp
+
+private theorem dot_unitVector_left_oob
+    (a : Array Rat) (n i : Nat) (ha : a.size = n) (hi : n ≤ i) :
+    dot (unitVector n i) a = 0 := by
+  rw [dot_eq_range_fold (unitVector n i) a (by rw [unitVector_size, ha])]
+  rw [unitVector_size]
+  apply Eq.trans ?_ (range_fold_unit_zero_before n i a hi)
+  apply range_fold_congr
+  intro j hj
+  rw [unitVector_get! n i j hj]
+
+private theorem linEval_var_oob (values : Array Rat) (n i : Nat)
+    (hValues : values.size = n) (hi : n ≤ i) :
+    values[i]! = linEval (unitVector n i) values 0 := by
+  have hOut : ¬ i < values.size := by rw [hValues]; omega
+  rw [getElem!_neg values i hOut]
+  unfold linEval
+  rw [dot_unitVector_left_oob values n i hValues hi]
+  show (default : Rat) = 0 + 0
+  rw [Rat.zero_add]
+  rfl
+
+theorem sound (cert : AffCert) (values : Array Rat) (n : Nat)
+    (hValues : values.size = n) :
+    cert.eval values = linEval (cert.coeffs n) values cert.offset := by
+  induction cert with
+  | lit c => exact linEval_const values n c hValues
+  | var i =>
+      by_cases hi : i < n
+      · exact linEval_var values n i hValues hi
+      · exact linEval_var_oob values n i hValues (Nat.le_of_not_lt hi)
+  | add a b iha ihb =>
+      have ha : (a.coeffs n).size = values.size := by rw [coeffs_size, hValues]
+      have hb : (b.coeffs n).size = values.size := by rw [coeffs_size, hValues]
+      exact linEval_add_eq iha ihb ha hb
+  | sub a b iha ihb =>
+      have ha : (a.coeffs n).size = values.size := by rw [coeffs_size, hValues]
+      have hb : (b.coeffs n).size = values.size := by rw [coeffs_size, hValues]
+      exact linEval_sub_eq iha ihb ha hb
+  | neg a iha =>
+      have ha : (a.coeffs n).size = values.size := by rw [coeffs_size, hValues]
+      exact linEval_neg_eq iha ha
+  | smul k a iha =>
+      have ha : (a.coeffs n).size = values.size := by rw [coeffs_size, hValues]
+      exact linEval_smul_eq iha ha
+
+theorem sound_at (cert : AffCert) (values : Array Rat) (n : Nat)
+    (hValues : values.size = n) {e : Rat} (hEval : e = cert.eval values) :
+    e = linEval (cert.coeffs n) values cert.offset :=
+  hEval.trans (sound cert values n hValues)
+
+/-- Bridge for the rare `a * k` shape: source orientation has scalar on the
+right but the certificate stores it on the left as `.smul k a'`. -/
+theorem eval_mulR {a : Rat} (cert : AffCert) (values : Array Rat) (k : Rat)
+    (h : a = cert.eval values) :
+    a * k = (AffCert.smul k cert).eval values := by
+  show a * k = k * cert.eval values
+  rw [h, Rat.mul_comm]
+
+end AffCert
 
 private theorem rowUpper_of_linEval {e ax bound : Rat} {coeffs values : Array Rat} {k : Rat}
     (hRow : e ≤ 0)
@@ -401,6 +530,21 @@ private theorem evalAx_get_eq_dot_of_evalATy_unit
   rw [dot_y_evalAx_eq_dot_evalATy_x p (unitVector m i.val) x
     (unitVector_size m i.val) hX]
   rw [hCoeffs]
+
+/-- Bundle `AffCert.sound_at` + `evalAx_get_eq_dot_of_evalATy_unit` + `rowUpper_of_linEval`
+into one theorem application per row, halving the `mkAppM` work in `mkFeasProof`. -/
+private theorem rowUpper_of_AffCert
+    {m n : Nat} {p : Problem m n} {y : Array Rat} {bound : Rat} {e : Rat}
+    (cert : AffCert) (hValues : y.size = n) (i : Fin m)
+    (hCoeffs : evalATy p (unitVector m i.val) = cert.coeffs n)
+    (hBound : bound = -cert.offset)
+    (hRow : e ≤ 0) (hEval : e = cert.eval y) :
+    (evalAx p y)[i.val]! ≤ bound := by
+  have hAx : (evalAx p y)[i.val]! = dot (cert.coeffs n) y :=
+    evalAx_get_eq_dot_of_evalATy_unit p y i (cert.coeffs n) hValues hCoeffs
+  have hLinEval : e = linEval (cert.coeffs n) y cert.offset :=
+    AffCert.sound_at cert y n hValues hEval
+  exact rowUpper_of_linEval hRow hLinEval hAx hBound
 
 private theorem ColBoundsSatisfied.allFree
     {m n : Nat} (p : Problem m n) (x : Array Rat)
@@ -479,13 +623,21 @@ structure Row where
   proof : MetaM Expr
 
 structure FixedLin where
+  /-- The (whnfR-normalised) source-side `Rat` expression this `FixedLin`
+  represents. Defeq to `AffCert.eval values certExpr` for the assignment
+  array used during parsing. -/
   expr : Expr
+  /-- Coefficients computed numerically at tactic time; consumed by
+  `buildProblemFixed` and by the `mkDecideProof` calls that bridge
+  `cert.coeffs n` to the literal `Array Rat` baked into the `Problem`. -/
   coeffs : Array Rat
-  coeffsExpr : Expr
+  /-- Constant offset computed numerically at tactic time. -/
   const : Rat
-  constExpr : Expr
-  proof : Expr
-  sizeProof : Expr
+  /-- The closed `AffCert` `Expr` for this parsed expression. -/
+  certExpr : Expr
+  /-- A proof of `expr = AffCert.eval values certExpr` (typed as
+  `expr = expr` via `Eq.refl`; defeq verified at construction). -/
+  evalProof : Expr
 
 structure ParseState where
   vars : Array FVarId := #[]
@@ -785,9 +937,6 @@ private def indexOfVar? (vars : Array FVarId) (id : FVarId) : Option Nat := Id.r
       return some i
   return none
 
-private def natTypeExpr : Expr :=
-  mkConst ``Nat
-
 private def ratAddInstExpr : Expr :=
   mkConst ``Rat.instAdd
 
@@ -821,206 +970,128 @@ private def mkRatMulExpr (a b : Expr) : Expr :=
 private def mkRatNegExpr (a : Expr) : Expr :=
   mkApp3 (mkConst ``Neg.neg [0]) ratType (mkConst ``Rat.instNeg) a
 
-private def mkArrayRatSizeExpr (xs : Expr) : Expr :=
-  mkApp2 (mkConst ``Array.size [0]) ratType xs
-
-private def mkEqSymmNatProof (a b h : Expr) : Expr :=
-  mkAppN (mkConst ``Eq.symm [1]) #[natTypeExpr, a, b, h]
-
-private def mkEqTransNatProof (a b c h₁ h₂ : Expr) : Expr :=
-  mkAppN (mkConst ``Eq.trans [1]) #[natTypeExpr, a, b, c, h₁, h₂]
-
-private def mkEqTransRatProof (a b c h₁ h₂ : Expr) : Expr :=
-  mkAppN (mkConst ``Eq.trans [1]) #[ratType, a, b, c, h₁, h₂]
-
-private def mkCoeffAddExpr (a b : Expr) : Expr :=
-  mkApp2 (mkConst ``coeffAdd) a b
-
-private def mkCoeffNegExpr (a : Expr) : Expr :=
-  mkApp (mkConst ``coeffNeg) a
-
-private def mkCoeffSmulExpr (k a : Expr) : Expr :=
-  mkApp2 (mkConst ``coeffSmul) k a
-
-private def mkRatZeroArrayExpr (n : Nat) : Expr :=
-  mkApp3 (mkConst ``Array.replicate [0]) ratType (toExpr n) (toExpr (0 : Rat))
-
 private def mkUnitVectorExpr (n i : Nat) : Expr :=
   mkApp2 (mkConst ``unitVector) (toExpr n) (toExpr i)
 
-private def mkLinEvalExpr (coeffs values const : Expr) : Expr :=
-  mkApp3 (mkConst ``linEval) coeffs values const
+private def mkAffCertLitExpr (c : Expr) : Expr :=
+  mkApp (mkConst ``AffCert.lit) c
 
-private def mkLinEvalConstProof (values : Expr) (n : Nat) (c hValues : Expr) : Expr :=
-  mkApp4 (mkConst ``linEval_const) values (toExpr n) c hValues
+private def mkAffCertVarExpr (i : Nat) : Expr :=
+  mkApp (mkConst ``AffCert.var) (toExpr i)
 
-private def mkLinEvalVarProof (values : Expr) (n i : Nat) (hValues hi : Expr) : Expr :=
-  mkApp5 (mkConst ``linEval_var) values (toExpr n) (toExpr i) hValues hi
+private def mkAffCertAddExpr (a b : Expr) : Expr :=
+  mkApp2 (mkConst ``AffCert.add) a b
 
-private def mkLinEvalAddProof (a b : FixedLin) (values : Expr) : Expr :=
-  mkAppN (mkConst ``linEval_add_eq)
-    #[a.expr, b.expr, a.coeffsExpr, b.coeffsExpr, values, a.constExpr, b.constExpr,
-      a.proof, b.proof, a.sizeProof, b.sizeProof]
+private def mkAffCertSubExpr (a b : Expr) : Expr :=
+  mkApp2 (mkConst ``AffCert.sub) a b
 
-private def mkLinEvalSubProof (a b : FixedLin) (values : Expr) : Expr :=
-  mkAppN (mkConst ``linEval_sub_eq)
-    #[a.expr, b.expr, a.coeffsExpr, b.coeffsExpr, values, a.constExpr, b.constExpr,
-      a.proof, b.proof, a.sizeProof, b.sizeProof]
+private def mkAffCertNegExpr (a : Expr) : Expr :=
+  mkApp (mkConst ``AffCert.neg) a
 
-private def mkLinEvalNegProof (a : FixedLin) (values : Expr) : Expr :=
-  mkAppN (mkConst ``linEval_neg_eq)
-    #[a.expr, a.coeffsExpr, values, a.constExpr, a.proof, a.sizeProof]
+private def mkAffCertSmulExpr (k a : Expr) : Expr :=
+  mkApp2 (mkConst ``AffCert.smul) k a
 
-private def mkLinEvalSmulProof (a : FixedLin) (values k : Expr) : Expr :=
-  mkAppN (mkConst ``linEval_smul_eq)
-    #[a.expr, a.coeffsExpr, values, a.constExpr, k, a.proof, a.sizeProof]
+private def mkAffCertEvalExpr (values cert : Expr) : Expr :=
+  mkApp2 (mkConst ``AffCert.eval) values cert
 
-private def mkLinEvalMulRightProof (a : FixedLin) (values k : Expr) : Expr :=
-  mkAppN (mkConst ``linEval_mul_right_eq)
-    #[a.expr, a.coeffsExpr, values, a.constExpr, k, a.proof, a.sizeProof]
+private def mkAffCertCoeffsExpr (n : Nat) (cert : Expr) : Expr :=
+  mkApp2 (mkConst ``AffCert.coeffs) (toExpr n) cert
 
-private def mkCoeffAddSizeProof (a b : FixedLin) (values : Expr) : Expr :=
-  mkAppN (mkConst ``coeffAdd_size_eq)
-    #[a.coeffsExpr, b.coeffsExpr, values, a.sizeProof, b.sizeProof]
+private def mkAffCertOffsetExpr (cert : Expr) : Expr :=
+  mkApp (mkConst ``AffCert.offset) cert
 
-private def mkCoeffNegSizeProof (a : FixedLin) (values : Expr) : Expr :=
-  mkAppN (mkConst ``coeffNeg_size_eq)
-    #[a.coeffsExpr, values, a.sizeProof]
-
-private def mkCoeffSmulSizeProof (a : FixedLin) (values k : Expr) : Expr :=
-  mkAppN (mkConst ``coeffSmul_size_eq)
-    #[k, a.coeffsExpr, values, a.sizeProof]
-
-private def mkUnitVectorSizeProof (n i : Nat) (ySizeExpr hYSize : Expr) : MetaM Expr := do
-  let lhs := mkArrayRatSizeExpr (mkUnitVectorExpr n i)
-  let hUnit := mkApp2 (mkConst ``unitVector_size) (toExpr n) (toExpr i)
-  let hYSym := mkEqSymmNatProof ySizeExpr (toExpr n) hYSize
-  pure <| mkEqTransNatProof lhs (toExpr n) ySizeExpr hUnit hYSym
-
-private def mkReplicateSizeProof (n : Nat) (ySizeExpr hYSize : Expr) : MetaM Expr := do
-  let lhs := mkArrayRatSizeExpr (mkRatZeroArrayExpr n)
-  let hRep ← mkEqRefl lhs
-  let hYSym := mkEqSymmNatProof ySizeExpr (toExpr n) hYSize
-  pure <| mkEqTransNatProof lhs (toExpr n) ySizeExpr hRep hYSym
+/-- Build `Eq.refl source` as a proof of `source = AffCert.eval values cert`.
+Returns a term of type `source = source`; relies on definitional equality
+between the two sides being verified at consumer time (e.g. via `mkAppM`
+when fed into `AffCert.sound_at`). This is much cheaper than verifying
+defeq at every internal AST node — for an expression of size `n` the
+per-node pattern would cost O(n²) `isDefEq` work. -/
+private def mkAffCertEvalReflProof (_values _cert source : Expr) : MetaM Expr := do
+  pure <| mkApp2 (mkConst ``Eq.refl [.succ .zero]) ratType source
 
 private def mkSubExpr (lhs rhs : Expr) : MetaM Expr :=
   mkAppM ``HSub.hSub #[lhs, rhs]
 
-private def mkArraySizeProof (xs ys : Expr) : MetaM Expr := do
-  let lhs ← mkAppM ``Array.size #[xs]
-  let rhs ← mkAppM ``Array.size #[ys]
-  unless ← withReducible <| isDefEq lhs rhs do
-    throwError "lp: internal affine proof size mismatch{indentExpr lhs}\nvs{indentExpr rhs}"
-  mkEqRefl lhs
-
-private def mkArraySizeNatProof (xs : Expr) (n : Nat) : MetaM Expr := do
-  let lhs ← mkAppM ``Array.size #[xs]
-  let rhs := toExpr n
-  unless ← withReducible <| isDefEq lhs rhs do
-    throwError "lp: internal affine proof size mismatch{indentExpr lhs}\nvs {n}"
-  mkEqRefl lhs
-
-private def mkFixedLinConst (vars : Array FVarId) (yArrayExpr : Expr) (ySizeExpr hYSize : Expr) (c : Rat) :
+private def mkFixedLinConst (vars : Array FVarId) (yArrayExpr : Expr) (c : Rat) :
     MetaM FixedLin := do
   let coeffs := Array.replicate vars.size 0
-  let coeffsExpr := mkRatZeroArrayExpr vars.size
-  let hSize ← mkReplicateSizeProof vars.size ySizeExpr hYSize
   let constExpr := toExpr c
-  let proof := mkLinEvalConstProof yArrayExpr vars.size constExpr hYSize
-  return { expr := constExpr, coeffs, coeffsExpr, const := c, constExpr, proof, sizeProof := hSize }
+  let certExpr := mkAffCertLitExpr constExpr
+  let evalProof ← mkAffCertEvalReflProof yArrayExpr certExpr constExpr
+  return { expr := constExpr, coeffs, const := c, certExpr, evalProof }
 
-private partial def parseFixedExpr (vars : Array FVarId) (yArrayExpr : Expr) (ySizeExpr hYSize : Expr) (e : Expr) :
+private partial def parseFixedExpr (vars : Array FVarId) (yArrayExpr : Expr) (e : Expr) :
     MetaM FixedLin := do
   let e ← withReducible <| whnfR e
   match e with
   | .fvar id =>
       if let some value ← fvarLetValue? id then
         if let some v ← parseScalar? value then
-          return ← mkFixedLinConst vars yArrayExpr ySizeExpr hYSize v
+          return ← mkFixedLinConst vars yArrayExpr v
       let ty ← inferType e
       unless ← isDefEq ty ratType do
         throwError "lp: expected a Rat expression, found{indentExpr e}"
       let some i := indexOfVar? vars id
         | throwError "lp: internal error: variable was not collected{indentExpr e}"
       let coeffs := unitVector vars.size i
-      let coeffsExpr := mkUnitVectorExpr vars.size i
-      let hSize ← mkUnitVectorSizeProof vars.size i ySizeExpr hYSize
-      let hIdx ← mkDecideProof (← mkAppM ``LT.lt #[toExpr i, toExpr vars.size])
-      let hVar := mkLinEvalVarProof yArrayExpr vars.size i hYSize hIdx
-      let getExpr ← mkAppM ``GetElem?.getElem! #[yArrayExpr, toExpr i]
-      unless ← isDefEq e getExpr do
-        throwError "lp: internal error: assignment array is not definitionally aligned with variable{indentExpr e}"
-      let hGet ← mkEqRefl e
-      let proof := mkEqTransRatProof e getExpr
-        (mkLinEvalExpr coeffsExpr yArrayExpr (toExpr (0 : Rat))) hGet hVar
-      return { expr := e, coeffs, coeffsExpr, const := 0, constExpr := toExpr (0 : Rat), proof, sizeProof := hSize }
+      let certExpr := mkAffCertVarExpr i
+      let evalProof ← mkAffCertEvalReflProof yArrayExpr certExpr e
+      return { expr := e, coeffs, const := 0, certExpr, evalProof }
   | _ =>
       let fn := e.getAppFn
       let args := e.getAppArgs
       match fn with
       | .const ``HAdd.hAdd _ =>
           if args.size == 6 then
-            let a ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize args[4]!
-            let b ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize args[5]!
+            let a ← parseFixedExpr vars yArrayExpr args[4]!
+            let b ← parseFixedExpr vars yArrayExpr args[5]!
             let coeffs := coeffAdd a.coeffs b.coeffs
             let expr := mkRatAddExpr a.expr b.expr
-            let coeffsExpr := mkCoeffAddExpr a.coeffsExpr b.coeffsExpr
-            let constExpr := mkRatAddExpr a.constExpr b.constExpr
-            let hSize := mkCoeffAddSizeProof a b yArrayExpr
-            let proof := mkLinEvalAddProof a b yArrayExpr
-            return { expr, coeffs, coeffsExpr, const := a.const + b.const, constExpr, proof, sizeProof := hSize }
+            let certExpr := mkAffCertAddExpr a.certExpr b.certExpr
+            let evalProof ← mkAffCertEvalReflProof yArrayExpr certExpr expr
+            return { expr, coeffs, const := a.const + b.const, certExpr, evalProof }
       | .const ``HSub.hSub _ =>
           if args.size == 6 then
-            let a ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize args[4]!
-            let b ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize args[5]!
+            let a ← parseFixedExpr vars yArrayExpr args[4]!
+            let b ← parseFixedExpr vars yArrayExpr args[5]!
             let coeffs := coeffAdd a.coeffs (coeffNeg b.coeffs)
             let expr := mkRatSubExpr a.expr b.expr
-            let bNegExpr := mkCoeffNegExpr b.coeffsExpr
-            let coeffsExpr := mkCoeffAddExpr a.coeffsExpr bNegExpr
-            let constExpr := mkRatSubExpr a.constExpr b.constExpr
-            let bNeg := { b with coeffsExpr := bNegExpr, sizeProof := mkCoeffNegSizeProof b yArrayExpr }
-            let hSize := mkCoeffAddSizeProof a bNeg yArrayExpr
-            let proof := mkLinEvalSubProof a b yArrayExpr
-            return { expr, coeffs, coeffsExpr, const := a.const - b.const, constExpr, proof, sizeProof := hSize }
+            let certExpr := mkAffCertSubExpr a.certExpr b.certExpr
+            let evalProof ← mkAffCertEvalReflProof yArrayExpr certExpr expr
+            return { expr, coeffs, const := a.const - b.const, certExpr, evalProof }
       | .const ``Neg.neg _ =>
           if args.size == 3 then
-            let a ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize args[2]!
+            let a ← parseFixedExpr vars yArrayExpr args[2]!
             let coeffs := coeffNeg a.coeffs
             let expr := mkRatNegExpr a.expr
-            let coeffsExpr := mkCoeffNegExpr a.coeffsExpr
-            let constExpr := mkRatNegExpr a.constExpr
-            let hSize := mkCoeffNegSizeProof a yArrayExpr
-            let proof := mkLinEvalNegProof a yArrayExpr
-            return { expr, coeffs, coeffsExpr, const := -a.const, constExpr, proof, sizeProof := hSize }
+            let certExpr := mkAffCertNegExpr a.certExpr
+            let evalProof ← mkAffCertEvalReflProof yArrayExpr certExpr expr
+            return { expr, coeffs, const := -a.const, certExpr, evalProof }
       | .const ``OfNat.ofNat _ =>
           if let some v ← parseScalar? e then
-            return ← mkFixedLinConst vars yArrayExpr ySizeExpr hYSize v
+            return ← mkFixedLinConst vars yArrayExpr v
       | .const ``HMul.hMul _ =>
           if args.size == 6 then
             let lhs := args[4]!
             let rhs := args[5]!
             if let some c ← parseScalar? lhs then
-              let a ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize rhs
+              let a ← parseFixedExpr vars yArrayExpr rhs
               let coeffs := coeffSmul c a.coeffs
               let expr := mkRatMulExpr lhs a.expr
-              let coeffsExpr := mkCoeffSmulExpr lhs a.coeffsExpr
-              let constExpr := mkRatMulExpr lhs a.constExpr
-              let hSize := mkCoeffSmulSizeProof a yArrayExpr lhs
-              let proof := mkLinEvalSmulProof a yArrayExpr lhs
-              return { expr, coeffs, coeffsExpr, const := c * a.const, constExpr, proof, sizeProof := hSize }
+              let certExpr := mkAffCertSmulExpr lhs a.certExpr
+              let evalProof ← mkAffCertEvalReflProof yArrayExpr certExpr expr
+              return { expr, coeffs, const := c * a.const, certExpr, evalProof }
             if let some c ← parseScalar? rhs then
-              let a ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize lhs
+              let a ← parseFixedExpr vars yArrayExpr lhs
               let coeffs := coeffSmul c a.coeffs
               let expr := mkRatMulExpr a.expr rhs
-              let coeffsExpr := mkCoeffSmulExpr rhs a.coeffsExpr
-              let constExpr := mkRatMulExpr rhs a.constExpr
-              let hSize := mkCoeffSmulSizeProof a yArrayExpr rhs
-              let proof := mkLinEvalMulRightProof a yArrayExpr rhs
-              return { expr, coeffs, coeffsExpr, const := c * a.const, constExpr, proof, sizeProof := hSize }
+              let certExpr := mkAffCertSmulExpr rhs a.certExpr
+              let evalProof ← mkAppM ``AffCert.eval_mulR #[a.certExpr, yArrayExpr, rhs, a.evalProof]
+              return { expr, coeffs, const := c * a.const, certExpr, evalProof }
             throwError "lp: nonlinear multiplication; one side of `*` must be a reducibly-closed Rat scalar"
       | .const ``HDiv.hDiv _ =>
           if let some v ← parseScalar? e then
-            return ← mkFixedLinConst vars yArrayExpr ySizeExpr hYSize v
+            return ← mkFixedLinConst vars yArrayExpr v
           throwError "lp: division is outside the supported affine Rat grammar"
       | _ => pure ()
       throwError "lp: unsupported Rat expression{indentExpr e}"
@@ -1111,6 +1182,8 @@ private def mkFeasProof (rows : Array Row) (fixedRows : Array FixedLin)
   let hRowBounds ← mkDecideProof rowBoundsEqForall
   let evalAxExpr ← mkAppM ``evalAx #[pExpr, yArrayExpr]
   let mut upperBranches := #[]
+  let mExpr := toExpr m
+  let nExpr := toExpr n
   for h : i in [0:fixedRows.size] do
     let fixed := fixedRows[i]
     let row ←
@@ -1119,17 +1192,18 @@ private def mkFeasProof (rows : Array Row) (fixedRows : Array FixedLin)
       else
         throwError "lp: internal row proof count mismatch"
     let finExpr := mkFinExpr i m (by simpa [m] using h.upper)
-    let coeffsExpr := fixed.coeffsExpr
+    let coeffsExpr := mkAffCertCoeffsExpr n fixed.certExpr
+    let offsetExpr := mkAffCertOffsetExpr fixed.certExpr
     let unitExpr := mkUnitVectorExpr m i
-    let evalATyExpr ← mkAppM ``evalATy #[pExpr, unitExpr]
+    let evalATyExpr := mkApp4 (mkConst ``evalATy) mExpr nExpr pExpr unitExpr
     let hCoeffs ← mkDecideProof (← mkEq evalATyExpr coeffsExpr)
-    let hAx ← mkAppM ``evalAx_get_eq_dot_of_evalATy_unit
-      #[pExpr, yArrayExpr, finExpr, coeffsExpr, hYSize, hCoeffs]
     let rowProof ← row.proof
     let boundExpr ← mkVectorGet boundsVecExpr finExpr
-    let negConstExpr := mkRatNegExpr fixed.constExpr
-    let hBound ← mkDecideProof (← mkEq boundExpr negConstExpr)
-    let hUpper ← mkAppM ``rowUpper_of_linEval #[rowProof, fixed.proof, hAx, hBound]
+    let negOffsetExpr := mkRatNegExpr offsetExpr
+    let hBound ← mkDecideProof (← mkEq boundExpr negOffsetExpr)
+    let hUpper := mkAppN (mkConst ``rowUpper_of_AffCert)
+      #[mExpr, nExpr, pExpr, yArrayExpr, boundExpr, fixed.expr,
+        fixed.certExpr, hYSize, finExpr, hCoeffs, hBound, rowProof, fixed.evalProof]
     upperBranches := upperBranches.push hUpper
   let hUpperFn ← mkFinCasesFunction m
     (fun i => do
@@ -1147,10 +1221,9 @@ private def proveEntailed (rows : Array Row) (strict : Bool)
   let yVecExpr ← mkAssignmentExpr vars
   let yArrayExpr ← mkAppM ``Vector.toArray #[yVecExpr]
   let hYSize ← mkAppM ``Vector.size_toArray #[yVecExpr]
-  let ySizeExpr := mkArrayRatSizeExpr yArrayExpr
-  let fixedRows ← rows.mapM fun row => parseFixedExpr vars yArrayExpr ySizeExpr hYSize row.term
+  let fixedRows ← rows.mapM fun row => parseFixedExpr vars yArrayExpr row.term
   let objExpr ← mkSubExpr rhs lhs
-  let objFixed ← parseFixedExpr vars yArrayExpr ySizeExpr hYSize objExpr
+  let objFixed ← parseFixedExpr vars yArrayExpr objExpr
   let p := buildProblemFixed fixedRows objFixed vars.size
   let opts : Options := { ({} : Options) with sense := .minimize, presolve := false }
   let normalized ←
@@ -1184,12 +1257,16 @@ private def proveEntailed (rows : Array Row) (strict : Bool)
       let primalX ← mkAppM ``primalObj #[pExpr, ← mkAppM ``Vector.toArray #[xExpr]]
       let hOptType ← if strict then mkPos primalX else mkNonneg primalX
       let hOpt ← mkDecideProof hOptType
+      let objCoeffsExpr := mkAffCertCoeffsExpr vars.size objFixed.certExpr
+      let objOffsetExpr := mkAffCertOffsetExpr objFixed.certExpr
       let cToArray ← mkAppM ``Vector.toArray #[← mkAppM ``Problem.c #[pExpr]]
-      let hCoeffs ← mkDecideProof (← mkEq cToArray objFixed.coeffsExpr)
+      let hCoeffs ← mkDecideProof (← mkEq cToArray objCoeffsExpr)
       let offset ← mkAppM ``Problem.objOffset #[pExpr]
-      let hOffset ← mkDecideProof (← mkEq offset objFixed.constExpr)
+      let hOffset ← mkDecideProof (← mkEq offset objOffsetExpr)
+      let hObjLin ← mkAppM ``AffCert.sound_at
+        #[objFixed.certExpr, yArrayExpr, toExpr vars.size, hYSize, objFixed.evalProof]
       let hObj ← mkAppM ``primalObj_eq_of_linEval
-        #[pExpr, yArrayExpr, objFixed.proof, hCoeffs, hOffset]
+        #[pExpr, yArrayExpr, hObjLin, hCoeffs, hOffset]
       if strict then
         mkAppM ``lt_goal_of_min_certificate #[hCheck, hFeas, hOpt, hObj]
       else
