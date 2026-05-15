@@ -1096,33 +1096,36 @@ private partial def parseFixedExpr (vars : Array FVarId) (yArrayExpr : Expr) (e 
       | _ => pure ()
       throwError "lp: unsupported Rat expression{indentExpr e}"
 
+private def mkFinTypeExpr (n : Nat) : Expr :=
+  mkApp (mkConst ``Fin) (toExpr n)
+
+private def mkFinSuccExpr (n : Nat) (i : Expr) : Expr :=
+  mkApp2 (mkConst ``Fin.succ) (toExpr n) i
+
 private partial def mkFinCasesFunction (n : Nat) (motive : Expr → MetaM Expr)
     (branches : Array Expr) : MetaM Expr := do
   unless branches.size = n do
     throwError "lp: internal Fin cases branch count mismatch"
-  let finType ← mkAppM ``Fin #[toExpr n]
-  withLocalDeclD `i finType fun i => do
+  withLocalDeclD `i (mkFinTypeExpr n) fun i => do
     let rec go (n : Nat) (motive : Expr → MetaM Expr)
         (branches : Array Expr) (i : Expr) : MetaM Expr := do
       match n with
       | 0 =>
           let target ← motive i
-          mkAppOptM ``Fin.elim0 #[some target, some i]
+          pure <| mkApp2 (mkConst ``Fin.elim0 [.zero]) target i
       | n' + 1 =>
           let motiveType ← (do
-            let finType ← mkAppM ``Fin #[toExpr (n' + 1)]
-            withLocalDeclD `j finType fun j => do
+            withLocalDeclD `j (mkFinTypeExpr (n' + 1)) fun j => do
               let body ← motive j
               mkLambdaFVars #[j] body)
           let head := branches[0]!
           let tail := branches.extract 1 branches.size
           let succFn ←
             mkFinCasesFunction n'
-              (fun j => do
-                let sj ← mkAppM ``Fin.succ #[j]
-                motive sj)
+              (fun j => motive (mkFinSuccExpr n' j))
               tail
-          mkAppOptM ``Fin.cases #[none, some motiveType, some head, some succFn, some i]
+          pure <| mkAppN (mkConst ``Fin.cases [.zero])
+            #[toExpr n', motiveType, head, succFn, i]
     let body ← go n motive branches i
     mkLambdaFVars #[i] body
 
