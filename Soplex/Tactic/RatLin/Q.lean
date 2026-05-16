@@ -70,6 +70,20 @@ theorem toRat_eq_zero_of_num_zero {a : Q} (h : a.num = 0) : a.toRat = 0 := by
 theorem toRat_sub (a b : Q) : (Q.add a (Q.neg b)).toRat = a.toRat - b.toRat := by
   rw [toRat_add, toRat_neg, Rat.sub_eq_add_neg]
 
+/-- A `Q.mk`-form literal equals the same value built as a `Rat` division
+of its two casts.  Used as a bridge lemma by the `RatLin` tactic when the
+user writes scalar literals as `(n / d : Rat)`. -/
+theorem toRat_eq_div (n : Int) (d : Nat) (hd : d ≠ 0) :
+    Q.toRat ⟨n, d, hd⟩ = ((n : Rat) / (d : Rat)) := by
+  unfold Q.toRat
+  rw [Rat.normalize_eq_mkRat, Rat.mkRat_eq_div]
+
+/-- Bridge lemma: a user-written `(n / d : Rat)` literal built from two
+`OfNat` numerics rewrites to a `Q.toRat` literal in canonical form. -/
+theorem div_ofNat_ofNat_eq_toRat (n d : Nat) (hd : d ≠ 0) :
+    ((OfNat.ofNat n : Rat) / (OfNat.ofNat d : Rat)) = Q.toRat ⟨Int.ofNat n, d, hd⟩ := by
+  rw [toRat_eq_div]; rfl
+
 end Q
 
 end Soplex.Tactic.RatLin

@@ -126,6 +126,62 @@ private def tryQToRat? (e : Expr) : MetaM (Option Rat) := do
   if h : d = 0 then return none
   else return some (Rat.normalize n d h)
 
+/-- Recognise `@OfNat.ofNat Rat n inst`.  Returns the underlying `Nat`
+value (parsed from the second argument). -/
+private def tryRatOfNatLit? (e : Expr) : MetaM (Option Nat) := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  unless fn.isConstOf ``OfNat.ofNat && args.size == 3 do return none
+  unless ← isDefEq args[0]! ratType do return none
+  parseNatLit args[1]!
+
+/-- Recognise `(OfNat.ofNat n : Rat) / (OfNat.ofNat d : Rat)` with
+`d ≠ 0`.  Returns the two `Nat` values. -/
+private def tryRatDivLit? (e : Expr) : MetaM (Option (Nat × Nat)) := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  unless fn.isConstOf ``HDiv.hDiv && args.size == 6 do return none
+  unless ← isDefEq args[0]! ratType do return none
+  let some n ← tryRatOfNatLit? args[4]! | return none
+  let some d ← tryRatOfNatLit? args[5]! | return none
+  if d == 0 then return none
+  return some (n, d)
+
+/-- Walk `e` rebuilding it so that every `(OfNat n : Rat) / (OfNat d : Rat)`
+(with `d ≠ 0`) is replaced by `Q.toRat ⟨Int.ofNat n, d, _⟩`.  Returns the
+rewritten Expr and, if any rewrite happened, a proof `e = rewritten`.
+
+The proof is constructed directly from the bridge lemma
+`Q.div_ofNat_ofNat_eq_toRat` and `mkCongr` for the surrounding context —
+no `simp` or other tactic is involved. -/
+private partial def bridgeRatDivLits (e : Expr) : MetaM (Expr × Option Expr) := do
+  if let some (n, d) ← tryRatDivLit? e then
+    let nNatLit := mkNatLit n
+    let dNatLit := mkNatLit d
+    let denNeq ← mkAppM ``Ne #[dNatLit, mkNatLit 0]
+    let denNeqProof ← mkDecideProof denNeq
+    let nIntLit := mkApp (mkConst ``Int.ofNat) nNatLit
+    let qLit := mkApp3 (mkConst ``Soplex.Tactic.RatLin.Q.mk) nIntLit dNatLit denNeqProof
+    let newE := mkApp (mkConst ``Soplex.Tactic.RatLin.Q.toRat) qLit
+    let proof := mkApp3 (mkConst ``Soplex.Tactic.RatLin.Q.div_ofNat_ofNat_eq_toRat)
+                   nNatLit dNatLit denNeqProof
+    return (newE, some proof)
+  match e with
+  | .app f x =>
+    let (f', pf?) ← bridgeRatDivLits f
+    let (x', px?) ← bridgeRatDivLits x
+    if pf?.isNone && px?.isNone then
+      return (e, none)
+    let pf ← match pf? with
+      | some p => pure p
+      | none => mkEqRefl f
+    let px ← match px? with
+      | some p => pure p
+      | none => mkEqRefl x
+    let cong ← mkCongr pf px
+    return (mkApp f' x', some cong)
+  | _ => return (e, none)
+
 /-- Recognise an expression as a **primitive** closed `Rat` scalar
 literal — `OfNat.ofNat n`, `Neg.neg <primitive>`, or
 `Q.toRat ⟨n, d, _⟩`.  Compound expressions like `2 - 1` are NOT folded
@@ -318,8 +374,12 @@ def proveLinearIdentity (target : Expr) : MetaM Expr := Lean.withAtLeastMaxRecDe
   let ty := args[0]!
   unless ← isDefEq ty (mkConst ``Rat) do
     throwError "lp/RatLin: expected an Eq on Rat, got{indentExpr target}"
-  let lhsExpr := args[1]!
-  let rhsExpr := args[2]!
+  let lhsExpr0 := args[1]!
+  let rhsExpr0 := args[2]!
+  -- Bridge any user-side `(p/q : Rat)` literals to canonical `Q.toRat` form
+  -- so the parsed `Lin.eval` is `rfl`-equal to the bridged expression.
+  let (lhsExpr, lhsBridge?) ← bridgeRatDivLits lhsExpr0
+  let (rhsExpr, rhsBridge?) ← bridgeRatDivLits rhsExpr0
   -- Parse both sides against a shared atom table.
   let ((lhsLin, rhsLin), st) ← (do
       let l ← parseExpr lhsExpr
@@ -338,11 +398,25 @@ def proveLinearIdentity (target : Expr) : MetaM Expr := Lean.withAtLeastMaxRecDe
   let lhsAst ← mkLinExpr lhsLin
   let rhsAst ← mkLinExpr rhsLin
   let rho ← mkRho st.atoms
-  -- proof : Lin.eval lhsAst ρ = Lin.eval rhsAst ρ
+  -- proofInternal : Lin.eval lhsAst ρ = Lin.eval rhsAst ρ
+  --                ≡ lhsExpr = rhsExpr   (by `rfl` on the eval reductions)
   let pL ← mkAppM ``Lin.eval_eq_evalNF #[lhsAst, rho]
   let pR ← mkAppM ``Lin.eval_eq_evalNF #[rhsAst, rho]
   let pRsym ← mkAppM ``Eq.symm #[pR]
-  let proof ← mkAppM ``Eq.trans #[pL, pRsym]
-  return proof
+  let proofInternal ← mkAppM ``Eq.trans #[pL, pRsym]
+  -- If a bridge was needed on either side, transport through the bridges:
+  --   lhsExpr0 = lhsExpr (= rhsExpr via proofInternal) = rhsExpr0
+  match lhsBridge?, rhsBridge? with
+  | none, none => return proofInternal
+  | _, _ =>
+    let lhsBridge ← match lhsBridge? with
+      | some p => pure p
+      | none => mkEqRefl lhsExpr0
+    let rhsBridge ← match rhsBridge? with
+      | some p => pure p
+      | none => mkEqRefl rhsExpr0
+    let rhsBridgeSym ← mkAppM ``Eq.symm #[rhsBridge]
+    let step1 ← mkAppM ``Eq.trans #[lhsBridge, proofInternal]
+    mkAppM ``Eq.trans #[step1, rhsBridgeSym]
 
 end Soplex.Tactic.RatLin
