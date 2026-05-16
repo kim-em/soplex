@@ -539,12 +539,19 @@ private def assembleLeProof (rows : Array Row) (strict : Bool)
   let lhsId ← mkRatAdd rhsMinusLhs sumExpr
   let identType ← mkEq lhsId cExpr
   let identProof ← proveAlgebraicIdentity identType
+  -- Build the final closer by explicit-argument application instead of
+  -- `mkAppM`. The four implicits (`lhs`, `rhs`, `s`, `c`) are already in
+  -- hand here, so making `mkAppM` rediscover them by `isDefEq` over the
+  -- deeply nested `sumProof`/`identProof` types blows the elaborator's
+  -- `maxRecDepth` on large LPs. See issue #71.
   if strict then
     let hC ← mkDecideProof (← mkAppM ``LT.lt #[(← mkRatLit 0), cExpr])
-    mkAppM ``direct_lt_close #[sumProof, hC, identProof]
+    return mkAppN (mkConst ``direct_lt_close)
+      #[lhs, rhs, sumExpr, cExpr, sumProof, hC, identProof]
   else
     let hC ← mkDecideProof (← mkAppM ``LE.le #[(← mkRatLit 0), cExpr])
-    mkAppM ``direct_le_close #[sumProof, hC, identProof]
+    return mkAppN (mkConst ``direct_le_close)
+      #[lhs, rhs, sumExpr, cExpr, sumProof, hC, identProof]
 
 private def proveEntailed (rows : Array Row) (strict : Bool)
     (vars : Array FVarId) (lhs rhs : Expr) : TacticM Expr := do
@@ -619,7 +626,9 @@ private def proveEntailed (rows : Array Row) (strict : Bool)
       let identType ← mkEq sumExpr cExpr
       let identProof ← proveAlgebraicIdentity identType
       let hC ← mkDecideProof (← mkAppM ``LT.lt #[(← mkRatLit 0), cExpr])
-      let hFalse ← mkAppM ``direct_infeasible_close #[sumProof, hC, identProof]
+      -- Explicit-argument construction; see comment in `assembleLeProof`.
+      let hFalse := mkAppN (mkConst ``direct_infeasible_close)
+        #[sumExpr, cExpr, sumProof, hC, identProof]
       let goalType ←
         if strict then mkAppM ``LT.lt #[lhs, rhs] else mkAppM ``LE.le #[lhs, rhs]
       mkAppOptM ``False.elim #[some goalType, some hFalse]

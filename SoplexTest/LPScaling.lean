@@ -12,12 +12,12 @@ with `m + n` rather than `m × n²`, so this file elaborates in seconds
 instead of timing out (or recursing past the kernel's limit).
 -/
 
--- The RatLin discharger emits a closed `Lin` AST whose kernel reduction
--- at N=80 and N=100 takes many `whnf` steps (linear-scan atom lookup
--- × O(N²) atom references).  Bump heartbeats and recursion depth
--- accordingly.
+-- The RatLin discharger's closed `Lin` AST takes many `whnf` steps at
+-- N=80/100 (linear-scan atom lookup × O(N²) atom references); bump
+-- heartbeats to absorb that.  `maxRecDepth` stays at its default — the
+-- final-closer applications are constructed with explicit implicits so
+-- they no longer trip the elaborator's recursion guard (see #71).
 set_option maxHeartbeats 16000000
-set_option maxRecDepth 65536
 
 namespace Soplex.Tactic.LP.Scaling
 
