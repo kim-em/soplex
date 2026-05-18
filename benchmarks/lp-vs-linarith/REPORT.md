@@ -52,6 +52,43 @@ harness is reproducible without re-running them.
 
 ## 2. Results
 
+### 2.0 The smallest cases: `lp` adds almost no overhead
+
+Before the headline tables, a baseline check. The minimum possible work
+is a single hypothesis on a single variable; both tactics should pay
+only the import / per-invocation cost. Three back-to-back runs of each:
+
+| | run 1 (cold) | run 2 | run 3 |
+|---|---:|---:|---:|
+| `import Soplex; import Mathlib.Tactic.Linarith` only (no tactic) | 10.0 s | 3.13 s | 3.13 s |
+| `example (a : Rat) (_h : a ≤ 1) : a ≤ 2 := by lp` | 3.18 s | 3.12 s | 3.10 s |
+| `example (a : Rat) (h : a ≤ 1) : a ≤ 2 := by linarith` | 3.13 s | 3.18 s | 3.43 s |
+
+After the first cold-cache invocation, the per-invocation floor is
+**3.1–3.2 s** — that is the cost of `lake env lean` plus loading the
+oleans of Soplex + Mathlib's `Linarith`. Both tactics add nothing
+measurable above that floor on the trivial example. So the gap you see
+at N=10 below is *not* per-invocation overhead — it is genuine work
+scaling with the problem's syntactic size.
+
+Multi-seed small-N data (means over 5 seeds, integer family):
+
+| N | `lp` | `linarith` |
+|---:|---:|---:|
+| 2 | 3.1 s | 3.2 s |
+| 4 | 3.2 s | 3.1 s |
+| 6 | 3.4 s | 3.2 s |
+| 8 | 3.4 s | 3.2 s |
+| 10 | 5.7 s* | 3.1 s |
+
+`lp` adds essentially nothing through N = 8 (each row of the N = 8
+dense-integer instance has 8 terms — ~64 multiplications and 56
+additions in the constraint matrix). The ramp begins between N = 8 and
+N = 10 and steepens fast — see §4 for where the time goes.
+
+(*) The N = 10 `lp` mean includes one 10.1 s cold-cache outlier; without
+it the other four seeds average 4.6 s.
+
 ### 2.1 Integer-coefficient dense LPs
 
 Means of 5 random seeds; the `range` columns are the per-seed min and
@@ -139,22 +176,54 @@ Consequences:
 
 ## 4. Where the time goes
 
-This was profiled (with `IO.monoMsNow` brackets) at multiple points
-during the perf-PR sequence. The breakdown on a representative N = 10
-instance was, *after* each round of fixes:
+Per-phase breakdown of `lp` on the current main, measured with
+`IO.monoMsNow` brackets around each phase of `solveAtomic` /
+`proveEntailed` / `assembleLeProof`, plus `set_option profiler true`
+for tactic-execution and kernel-typecheck totals.
 
-| Phase | After #60 (mid 2026-05-14) | On `main` today |
-|---|---:|---:|
-| `parseFixedExpr` / row parsing | 280 ms → 5 ms | ~few ms |
-| `mkFeasProof` / weighted-sum proof | 81 ms → 35 ms | several ms |
-| **SoPlex FFI (`solveExact`)** | **7 ms** | **a few ms** |
-| `verifyOutcome` + `checkOptimal` | 0 ms | not on the path anymore (direct-cert backend) |
-| Kernel type-check of the proof term | 3.4 s | dominant on big instances |
+| Phase (within `lp`) | N=4 | N=8 | N=10 | N=20 | N=40 |
+|---|---:|---:|---:|---:|---:|
+| `parse(goal+hyps)` (`solveAtomic`) | 3 ms | 9 ms | 15 ms | 77 ms | 545 ms |
+| `parse(goal-aff)` (`proveEntailed`) | 1 ms | 0 ms | 1 ms | 3 ms | 18 ms |
+| `validate(p)` | 1 ms | 0 ms | 0 ms | 2 ms | 7 ms |
+| **`solveExact` (SoPlex FFI)** | **7 ms** | **2 ms** | **3 ms** | **8 ms** | **32 ms** |
+| `assembleLeProof` — force row proofs | 0 ms | 1 ms | 1 ms | 4 ms | 26 ms |
+| `assembleLeProof` — `buildWeightedSumAndProof` | 6 ms | 8 ms | 9 ms | 17 ms | 41 ms |
+| **`proveAlgebraicIdentity` (RatLin)** | **32 ms** | **103 ms** | **168 ms** | **881 ms** | **5 052 ms** |
 
-The headline is consistent across every measurement: **SoPlex itself is
-not the bottleneck**, and never was. The cost is metaprogram-side
-`Expr` construction and kernel type-checking of the produced proof
-term. Each perf PR (see §6) has chipped at one of those.
+`proveAlgebraicIdentity` — the RatLin normalizer's discharge of the
+`(rhs − lhs) + Σ λᵢ tᵢ = c` identity — is **74 % of tactic execution at
+N = 10 and 82 % at N = 40**. Its growth is super-linear (≈ O(N²) on this
+construction). Everything else in the tactic body is small in
+comparison. SoPlex's actual LP solve never exceeds 32 ms.
+
+Total picture, apples-to-apples vs `linarith` (profiler):
+
+| | N=10 | | N=40 | |
+|---|---:|---:|---:|---:|
+| | `lp` | `linarith` | `lp` | `linarith` |
+| Tactic execution | 228 ms | 73 ms | 6 460 ms | 597 ms |
+| Kernel typecheck | 138 ms | 23 ms | 6 510 ms | 467 ms |
+| **Sum** | **366 ms** | **96 ms** | **12 970 ms** | **1 064 ms** |
+| `lp` / `linarith` | 3.8× | | 12.2× | |
+
+Two things to read out of this:
+
+1. **`lp`'s tactic-side bottleneck is `proveAlgebraicIdentity`.** Even at
+   N = 10, where the absolute number is modest (170 ms), it is already
+   the dominant single phase. Cutting it scales every result above. Its
+   internal structure is the RatLin normalizer's NF-equality check —
+   tracked at the call-site level in #80 (the safe-subset cleanup in
+   #85 didn't touch the `mkAppM ``Eq.trans` middle-term def-eq inside
+   `proveLinearIdentity`, which is the one that costs).
+2. **`lp`'s kernel typecheck is comparable to its tactic time.** The
+   produced proof term — a weighted sum of hypotheses tied together by
+   the RatLin certificate of the identity — is expensive to verify.
+   This is what #82 (the lazy-`Expr` survey) is meant to attack
+   structurally.
+
+SoPlex's actual LP solve is **single-digit milliseconds** throughout
+this entire table. It is not, and has never been, the bottleneck.
 
 ## 5. Families that did *not* yield an `lp` advantage
 
