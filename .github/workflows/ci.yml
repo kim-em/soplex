@@ -43,13 +43,22 @@ jobs:
 
       - name: Resolve the system libc++ for the final link (v4.31 Linux)
         run: |
-          # SoplexFFI compiles SoPlex against the system libc++ headers, but the
-          # v4.31 toolchain links its own (incompatible) libc++ runtime, which lacks
-          # symbols the system headers reference (std::__1::__hash_memory etc).
-          # Put the system clang's libc++ dir first on LIBRARY_PATH so the link
-          # resolves -lc++ against the same libc++ the objects were compiled with.
-          P="$(clang++ --print-file-name=libc++.so)"
-          case "$P" in /*) D="$(dirname "$P")";
+          set -x
+          which clang++ || true
+          clang++ --version | head -1 || true
+          echo "PREFIX=$(lean --print-prefix)"
+          for L in libc++.so libc++.a libc++abi.so libc++abi.a; do
+            echo "print-file-name $L = $(clang++ --print-file-name=$L)"
+          done
+          SO="$(clang++ --print-file-name=libc++.so)"
+          echo "--- nm -D libc++.so | grep hash_memory ---"
+          [ -f "$SO" ] && nm -D "$SO" 2>/dev/null | grep -i "hash_memory\|atomic_wait_native" || echo "(no .so or no symbol)"
+          A="$(clang++ --print-file-name=libc++.a)"
+          echo "--- nm libc++.a | grep hash_memory ---"
+          [ -f "$A" ] && nm "$A" 2>/dev/null | grep -i "hash_memory\|atomic_wait_native" | grep " T \| W " | head || echo "(no .a or no symbol)"
+          echo "--- find system libc++ ---"
+          find /usr -name 'libc++*.so*' -o -name 'libc++*.a' 2>/dev/null | head -20 || true
+          case "$SO" in /*) D="$(dirname "$SO")";
             echo "LIBRARY_PATH=$D:${LIBRARY_PATH:-}" >> "$GITHUB_ENV";
             echo "LD_LIBRARY_PATH=$D:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV";; esac
 
@@ -190,13 +199,22 @@ jobs:
 
       - name: Resolve the system libc++ for the final link (v4.31 Linux)
         run: |
-          # SoplexFFI compiles SoPlex against the system libc++ headers, but the
-          # v4.31 toolchain links its own (incompatible) libc++ runtime, which lacks
-          # symbols the system headers reference (std::__1::__hash_memory etc).
-          # Put the system clang's libc++ dir first on LIBRARY_PATH so the link
-          # resolves -lc++ against the same libc++ the objects were compiled with.
-          P="$(clang++ --print-file-name=libc++.so)"
-          case "$P" in /*) D="$(dirname "$P")";
+          set -x
+          which clang++ || true
+          clang++ --version | head -1 || true
+          echo "PREFIX=$(lean --print-prefix)"
+          for L in libc++.so libc++.a libc++abi.so libc++abi.a; do
+            echo "print-file-name $L = $(clang++ --print-file-name=$L)"
+          done
+          SO="$(clang++ --print-file-name=libc++.so)"
+          echo "--- nm -D libc++.so | grep hash_memory ---"
+          [ -f "$SO" ] && nm -D "$SO" 2>/dev/null | grep -i "hash_memory\|atomic_wait_native" || echo "(no .so or no symbol)"
+          A="$(clang++ --print-file-name=libc++.a)"
+          echo "--- nm libc++.a | grep hash_memory ---"
+          [ -f "$A" ] && nm "$A" 2>/dev/null | grep -i "hash_memory\|atomic_wait_native" | grep " T \| W " | head || echo "(no .a or no symbol)"
+          echo "--- find system libc++ ---"
+          find /usr -name 'libc++*.so*' -o -name 'libc++*.a' 2>/dev/null | head -20 || true
+          case "$SO" in /*) D="$(dirname "$SO")";
             echo "LIBRARY_PATH=$D:${LIBRARY_PATH:-}" >> "$GITHUB_ENV";
             echo "LD_LIBRARY_PATH=$D:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV";; esac
 
