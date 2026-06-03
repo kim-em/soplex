@@ -41,6 +41,17 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
+      - name: Use the Lean toolchain clang for the SoPlex C++ build
+        run: |
+          # SoplexFFI compiles SoPlex with `-stdlib=libc++`; the Lean exe link uses the
+          # toolchain clang/libc++. Under v4.31 the system clang (newer libc++) and the
+          # toolchain libc++ diverge, so compile SoPlex with the toolchain clang too.
+          TCBIN="$(lean --print-prefix)/bin"
+          mkdir -p "$HOME/tc-cxx"
+          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang"
+          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang++"
+          echo "$HOME/tc-cxx" >> "$GITHUB_PATH"
+
       - name: Build Lean targets
         run: lake build Soplex SoplexLPTest ffi-check quickstart-example
 
@@ -151,6 +162,17 @@ jobs:
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
+
+      - name: Use the Lean toolchain clang for the SoPlex C++ build
+        run: |
+          # SoplexFFI compiles SoPlex with `-stdlib=libc++`; the Lean exe link uses the
+          # toolchain clang/libc++. Under v4.31 the system clang (newer libc++) and the
+          # toolchain libc++ diverge, so compile SoPlex with the toolchain clang too.
+          TCBIN="$(lean --print-prefix)/bin"
+          mkdir -p "$HOME/tc-cxx"
+          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang"
+          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang++"
+          echo "$HOME/tc-cxx" >> "$GITHUB_PATH"
 
       - name: Plant compiler-rt sanitizer archives into Lean's clang
         run: ./scripts/install-sanitizer-runtime.sh
