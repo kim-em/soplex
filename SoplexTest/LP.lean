@@ -90,7 +90,7 @@ example (x : Rat) : x ≤ 0 := by lp
 
 -- Division → rejected at the linear-expression extractor with a
 -- targeted message.
-/-- error: lp: division is outside the supported affine Rat grammar -/
+/-- error: lp: division is outside the supported affine grammar -/
 #guard_msgs in
 example (x : Rat) (_h : x / 2 ≤ 1) : x ≤ 2 := by lp
 
