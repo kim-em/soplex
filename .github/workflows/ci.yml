@@ -41,16 +41,17 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
-      - name: Use the Lean toolchain clang for the SoPlex C++ build
+      - name: Resolve the system libc++ for the final link (v4.31 Linux)
         run: |
-          # SoplexFFI compiles SoPlex with `-stdlib=libc++`; the Lean exe link uses the
-          # toolchain clang/libc++. Under v4.31 the system clang (newer libc++) and the
-          # toolchain libc++ diverge, so compile SoPlex with the toolchain clang too.
-          TCBIN="$(lean --print-prefix)/bin"
-          mkdir -p "$HOME/tc-cxx"
-          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang"
-          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang++"
-          echo "$HOME/tc-cxx" >> "$GITHUB_PATH"
+          # SoplexFFI compiles SoPlex against the system libc++ headers, but the
+          # v4.31 toolchain links its own (incompatible) libc++ runtime, which lacks
+          # symbols the system headers reference (std::__1::__hash_memory etc).
+          # Put the system clang's libc++ dir first on LIBRARY_PATH so the link
+          # resolves -lc++ against the same libc++ the objects were compiled with.
+          P="$(clang++ --print-file-name=libc++.so)"
+          case "$P" in /*) D="$(dirname "$P")";
+            echo "LIBRARY_PATH=$D:${LIBRARY_PATH:-}" >> "$GITHUB_ENV";
+            echo "LD_LIBRARY_PATH=$D:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV";; esac
 
       - name: Build Lean targets
         run: lake build Soplex SoplexLPTest ffi-check quickstart-example
@@ -163,17 +164,6 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
-      - name: Use the Lean toolchain clang for the SoPlex C++ build
-        run: |
-          # SoplexFFI compiles SoPlex with `-stdlib=libc++`; the Lean exe link uses the
-          # toolchain clang/libc++. Under v4.31 the system clang (newer libc++) and the
-          # toolchain libc++ diverge, so compile SoPlex with the toolchain clang too.
-          TCBIN="$(lean --print-prefix)/bin"
-          mkdir -p "$HOME/tc-cxx"
-          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang"
-          ln -sf "$TCBIN/clang" "$HOME/tc-cxx/clang++"
-          echo "$HOME/tc-cxx" >> "$GITHUB_PATH"
-
       - name: Plant compiler-rt sanitizer archives into Lean's clang
         run: ./scripts/install-sanitizer-runtime.sh
 
@@ -197,6 +187,18 @@ jobs:
       - name: Set UBSAN_OPTIONS with workspace-rooted suppressions
         run: |
           echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/SoplexTest/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
+
+      - name: Resolve the system libc++ for the final link (v4.31 Linux)
+        run: |
+          # SoplexFFI compiles SoPlex against the system libc++ headers, but the
+          # v4.31 toolchain links its own (incompatible) libc++ runtime, which lacks
+          # symbols the system headers reference (std::__1::__hash_memory etc).
+          # Put the system clang's libc++ dir first on LIBRARY_PATH so the link
+          # resolves -lc++ against the same libc++ the objects were compiled with.
+          P="$(clang++ --print-file-name=libc++.so)"
+          case "$P" in /*) D="$(dirname "$P")";
+            echo "LIBRARY_PATH=$D:${LIBRARY_PATH:-}" >> "$GITHUB_ENV";
+            echo "LD_LIBRARY_PATH=$D:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV";; esac
 
       - name: Build sanitized Lean targets
         run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 Soplex ffi-check quickstart-example
