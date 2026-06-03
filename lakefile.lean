@@ -14,7 +14,7 @@ require LPVerify from git "https://github.com/kim-em/lp-verify" @
   "3ff2a91582ed8b460021698804266cafbfda0aa5"
 
 require LPTactic from git "https://github.com/kim-em/lp-tactic" @
-  "4c2fc33098fdd88f9a742eddac4cf5cc53b49530"
+  "de5610019e5a799100428f60cc68131664115e71"
 
 require LPBackendSoplexFFI from git
   "https://github.com/kim-em/lp-backend-soplex-ffi" @
@@ -94,7 +94,8 @@ lean_lib SoplexTest where
 lean_lib SoplexLPTest where
   roots := #[`SoplexTest.LP, `SoplexTest.LPExistential, `SoplexTest.LPMaximize,
              `SoplexTest.LPInnerForall, `SoplexTest.LPBenders, `SoplexTest.LPScaling,
-             `SoplexTest.LPInt, `SoplexTest.LPDyadic, `SoplexTest.LPNat]
+             `SoplexTest.LPInt, `SoplexTest.LPDyadic, `SoplexTest.LPNat,
+             `SoplexTest.LPReject]
 
 /-- End-to-end FFI runtime check: prints the SoPlex version, runs the
     cross-stdlib ABI throw/catch test, and runs a small LP sanity check.
