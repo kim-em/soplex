@@ -41,28 +41,8 @@ jobs:
           export PATH="$HOME/.elan/bin:$PATH"
           ./scripts/install-toolchain.sh
 
-      - name: Link against the toolchain libc++ (it defines what libleanrt.a needs)
-        run: |
-          # libleanrt.a references libc++ symbols (std::__1::__hash_memory,
-          # __atomic_wait_native) that the Lean toolchain's own libc++ defines but
-          # Ubuntu's system libc++ does not. Put the toolchain lib dir first on
-          # LIBRARY_PATH/LD_LIBRARY_PATH so the link resolves -lc++ against it.
-          P="$(lean --print-prefix)/lib"
-          echo "LIBRARY_PATH=$P:${LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$P:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-
       - name: Build Lean targets
-        run: |
-          set -o pipefail
-          lake build Soplex SoplexLPTest ffi-check quickstart-example 2>&1 | tee /tmp/build.log || {
-            echo "==== DIAG: link response files (what libc++ is named?) ===="
-            for f in $(find .lake -name 'ffi-check.rsp' -o -name 'quickstart-example.rsp'); do
-              echo "---- $f ----"; tr ' ' '\n' < "$f"
-            done | grep -iE "lc\+\+|stdlib|libc\+\+|leanrt|leanshared|lstdc|\.a$|^-L" | sort | uniq -c
-            echo "==== DIAG: full quickstart rsp ===="
-            cat $(find .lake -name 'quickstart-example.rsp' | head -1) 2>/dev/null
-            exit 1
-          }
+        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -196,16 +176,6 @@ jobs:
         run: |
           echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/SoplexTest/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
 
-      - name: Link against the toolchain libc++ (it defines what libleanrt.a needs)
-        run: |
-          # libleanrt.a references libc++ symbols (std::__1::__hash_memory,
-          # __atomic_wait_native) that the Lean toolchain's own libc++ defines but
-          # Ubuntu's system libc++ does not. Put the toolchain lib dir first on
-          # LIBRARY_PATH/LD_LIBRARY_PATH so the link resolves -lc++ against it.
-          P="$(lean --print-prefix)/lib"
-          echo "LIBRARY_PATH=$P:${LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$P:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-
       - name: Build sanitized Lean targets
         run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 Soplex ffi-check quickstart-example
 
@@ -268,17 +238,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: |
-          set -o pipefail
-          lake build Soplex SoplexLPTest ffi-check quickstart-example 2>&1 | tee /tmp/build.log || {
-            echo "==== DIAG: link response files (what libc++ is named?) ===="
-            for f in $(find .lake -name 'ffi-check.rsp' -o -name 'quickstart-example.rsp'); do
-              echo "---- $f ----"; tr ' ' '\n' < "$f"
-            done | grep -iE "lc\+\+|stdlib|libc\+\+|leanrt|leanshared|lstdc|\.a$|^-L" | sort | uniq -c
-            echo "==== DIAG: full quickstart rsp ===="
-            cat $(find .lake -name 'quickstart-example.rsp' | head -1) 2>/dev/null
-            exit 1
-          }
+        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |

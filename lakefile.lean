@@ -51,15 +51,26 @@ def soplexFFIRuntimeLinkArgs : Array String :=
       "-lgcc_s",
       "-lmingwex",
       "-lmsvcrt"]
+  else if sanitizerEnabled then
+    -- Sanitizer lane only: `precompileModules` is off here, so the exes link the
+    -- self-contained dynamic `libleanshared` (no static `libleanrt.a`), and these
+    -- `-L/usr/lib*` dirs are needed to find `-lresolv` etc. for the ASan runtime.
+    -- They do NOT shadow the toolchain libc++ in this lane because nothing here
+    -- statically pulls libleanrt's libc++ references.
+    #["-L/usr/lib/x86_64-linux-gnu",
+      "-L/usr/lib/aarch64-linux-gnu",
+      "-L/usr/lib64",
+      "-L/usr/lib"] ++ sanitizerArgs
   else
-    -- Linux: do NOT add `-L/usr/lib/x86_64-linux-gnu` (etc.) here. Those dirs
-    -- hold Ubuntu's `libc++.so.1`, and a command-line `-L` is searched *before*
-    -- `LIBRARY_PATH`, so they shadow the Lean toolchain's own libc++ for `-lc++`.
-    -- Ubuntu's libc++ 18 does not export the C++20 symbols (`std::__1::__hash_memory`,
-    -- `__atomic_wait_native`) that the toolchain-built `libleanrt.a`/`libleancpp.a`
-    -- reference, so the shadow produced "undefined symbol" link failures on v4.31.
-    -- GMP/Boost still resolve via the toolchain clang's default system search dirs.
-    sanitizerArgs
+    -- Default Linux lane: do NOT add `-L/usr/lib/x86_64-linux-gnu` (etc.). Those
+    -- dirs hold Ubuntu's `libc++.so`, and a command-line `-L` is searched *before*
+    -- the toolchain's own lib dir, so they shadow the Lean toolchain's libc++ for
+    -- `-lc++`. Ubuntu's libc++ 18 does not export the C++20 symbols
+    -- (`std::__1::__hash_memory`, `__atomic_wait_native`) that the toolchain-built
+    -- `libleanrt.a`/`libleancpp.a` reference (the toolchain's own libc++ does), so
+    -- the shadow caused "undefined symbol" link failures with `precompileModules`
+    -- on v4.31. GMP/Boost resolve via the toolchain clang's default search dirs.
+    #[]
 
 package Soplex where
   moreLinkArgs := soplexFFIRuntimeLinkArgs
