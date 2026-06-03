@@ -14,7 +14,7 @@ require LPVerify from git "https://github.com/kim-em/lp-verify" @
   "3ff2a91582ed8b460021698804266cafbfda0aa5"
 
 require LPTactic from git "https://github.com/kim-em/lp-tactic" @
-  "f6a72b7f7df1609571e79b4ff6333b72794a4df5"
+  "d176a115df58828cebe4976994dc82d5bca6c9c0"
 
 require LPBackendSoplexFFI from git
   "https://github.com/kim-em/lp-backend-soplex-ffi" @
@@ -86,6 +86,15 @@ lean_lib Soplex where
     `SoplexTest.SolveCommon` as compiled dependencies. -/
 lean_lib SoplexTest where
   roots := #[`SoplexTest.Common, `SoplexTest.SolveCommon]
+
+/-- The `by lp` / `maximize` tactic tests. Building this library elaborates every
+    `example := by lp`, exercising the carrier-parametrized tactic end to end
+    against the FFI backend — atomic, `∃`, `maximize`, inner-`∀`, Benders, and
+    scaling over `Rat`, plus the `Int`/`Dyadic`/`Nat` carrier lanes. -/
+lean_lib SoplexLPTest where
+  roots := #[`SoplexTest.LP, `SoplexTest.LPExistential, `SoplexTest.LPMaximize,
+             `SoplexTest.LPInnerForall, `SoplexTest.LPBenders, `SoplexTest.LPScaling,
+             `SoplexTest.LPInt, `SoplexTest.LPDyadic, `SoplexTest.LPNat]
 
 /-- End-to-end FFI runtime check: prints the SoPlex version, runs the
     cross-stdlib ABI throw/catch test, and runs a small LP sanity check.

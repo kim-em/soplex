@@ -42,7 +42,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex ffi-check quickstart-example
+        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -238,7 +238,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex ffi-check quickstart-example
+        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -303,7 +303,7 @@ jobs:
         run: |
           set -e
           export PATH="$(paste -sd: .elan-path):$PATH"
-          lake build Soplex ffi-check quickstart-example
+          lake build Soplex SoplexLPTest ffi-check quickstart-example
 
           set +e
           ./.lake/build/bin/ffi-check.exe > /tmp/ffi-check.out 2>&1
