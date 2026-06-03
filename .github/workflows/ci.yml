@@ -52,7 +52,17 @@ jobs:
           echo "LD_LIBRARY_PATH=$P:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
 
       - name: Build Lean targets
-        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
+        run: |
+          set -o pipefail
+          lake build Soplex SoplexLPTest ffi-check quickstart-example 2>&1 | tee /tmp/build.log || {
+            echo "==== DIAG: link response files (what libc++ is named?) ===="
+            for f in $(find .lake -name 'ffi-check.rsp' -o -name 'quickstart-example.rsp'); do
+              echo "---- $f ----"; tr ' ' '\n' < "$f"
+            done | grep -iE "lc\+\+|stdlib|libc\+\+|leanrt|leanshared|lstdc|\.a$|^-L" | sort | uniq -c
+            echo "==== DIAG: full quickstart rsp ===="
+            cat $(find .lake -name 'quickstart-example.rsp' | head -1) 2>/dev/null
+            exit 1
+          }
 
       - name: Run ffi-check executable
         run: |
@@ -258,7 +268,17 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
+        run: |
+          set -o pipefail
+          lake build Soplex SoplexLPTest ffi-check quickstart-example 2>&1 | tee /tmp/build.log || {
+            echo "==== DIAG: link response files (what libc++ is named?) ===="
+            for f in $(find .lake -name 'ffi-check.rsp' -o -name 'quickstart-example.rsp'); do
+              echo "---- $f ----"; tr ' ' '\n' < "$f"
+            done | grep -iE "lc\+\+|stdlib|libc\+\+|leanrt|leanshared|lstdc|\.a$|^-L" | sort | uniq -c
+            echo "==== DIAG: full quickstart rsp ===="
+            cat $(find .lake -name 'quickstart-example.rsp' | head -1) 2>/dev/null
+            exit 1
+          }
 
       - name: Run ffi-check executable
         run: |
