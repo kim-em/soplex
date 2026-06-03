@@ -142,3 +142,8 @@ example (x y _z u v w p q r : Rat)
     (_c3 : u + p ≤ 15) (_c4 : v + q ≤ 15) (_c5 : w + r ≤ 15) :
     3 * x ≤ 7 := by
   lp
+
+-- A bare `False` goal closes from an inconsistent `Rat` hypothesis system; the
+-- carrier is read from the hypotheses since the goal carries none.
+example (a : Rat) (_h₁ : a ≤ 1) (_h₂ : 3 ≤ a) : False := by lp
+example (p : Prop) (a : Rat) (_h₁ : a ≤ 1) (_h₂ : 3 ≤ a) : p := by lp

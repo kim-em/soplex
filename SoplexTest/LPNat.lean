@@ -37,3 +37,8 @@ example : ∃ x y : Nat, x ≤ 3 ∧ y ≤ 2 ∧ 1 ≤ x := by lp
 example (x : Nat) (_h : 2 * x ≤ 6) : True := by
   maximize (x : Nat)
   trivial
+
+-- Inconsistent hypotheses also close a bare `False` goal (carrier from hyps),
+-- including when the inconsistency is inside an `∧` hypothesis.
+example (a : Nat) (_h₁ : a ≤ 1) (_h₂ : 3 ≤ a) : False := by lp
+example (a : Nat) (_h : a ≤ 1 ∧ 3 ≤ a) : False := by lp

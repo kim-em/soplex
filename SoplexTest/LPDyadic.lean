@@ -29,3 +29,6 @@ example : ∃ x : Dyadic, 1 ≤ x ∧ x ≤ 3 := by lp
 example (x : Dyadic) (_h : 2 * x ≤ 6) : True := by
   maximize (x : Dyadic)
   trivial
+
+-- Inconsistent hypotheses also close a bare `False` goal (carrier from hyps).
+example (a : Dyadic) (_h₁ : a ≤ 1) (_h₂ : 3 ≤ a) : False := by lp
