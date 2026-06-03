@@ -21,7 +21,7 @@ require LPBackendSoplexFFI from git
   "0bb6e4aa0979b8caa706747e9fd3e53a1bb8709f"
 
 require SoplexFFI from git "https://github.com/kim-em/soplex-ffi" @
-  "a1389a99c2345f9d72ffdc2941be350ad0f97fd7"
+  "2cbac6bbbff052123bab951b4de2a79ee44e1e94"
 
 def sanitizerEnabled : Bool :=
   match get_config? sanitize with
