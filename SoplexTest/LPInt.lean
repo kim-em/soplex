@@ -34,3 +34,7 @@ example (a : Int) (_h₁ : a ≤ 1) (_h₂ : 3 ≤ a) : ∃ y : Int, 1 ≤ y ∧
 example (x : Int) (_h : 2 * x ≤ 6) : True := by
   maximize (x : Int)
   trivial
+
+-- Inconsistent hypotheses also close a bare `False` goal (carrier from hyps).
+example (a : Int) (_h₁ : a ≤ 1) (_h₂ : 3 ≤ a) : False := by lp
+example (x y : Int) (_h₁ : x + y ≤ 1) (_h₂ : 2 ≤ x) (_h₃ : 1 ≤ y) : False := by lp

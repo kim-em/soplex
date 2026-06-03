@@ -14,7 +14,7 @@ require LPVerify from git "https://github.com/kim-em/lp-verify" @
   "3ff2a91582ed8b460021698804266cafbfda0aa5"
 
 require LPTactic from git "https://github.com/kim-em/lp-tactic" @
-  "d176a115df58828cebe4976994dc82d5bca6c9c0"
+  "4c2fc33098fdd88f9a742eddac4cf5cc53b49530"
 
 require LPBackendSoplexFFI from git
   "https://github.com/kim-em/lp-backend-soplex-ffi" @
