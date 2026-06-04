@@ -1,6 +1,6 @@
 # Soplex
 
-[![Lean](https://img.shields.io/badge/Lean-4.29.1-blue.svg)](./lean-toolchain)
+[![Lean](https://img.shields.io/badge/Lean-4.31.0--rc1-blue.svg)](./lean-toolchain)
 [![License](https://img.shields.io/github/license/kim-em/soplex.svg)](./LICENSE)
 
 Lean verified certificate checking for [SoPlex](https://soplex.zib.de/), the linear programming solver from the SCIP optimization suite.
@@ -196,6 +196,15 @@ example (x : Rat) (_ : 0 ≤ x) (_ : x ≤ 4) : 3 * x + 7 ≤ 19 := by
 If hypotheses are inconsistent, `maximize` closes the surrounding
 goal by `False.elim`. If the LP is unbounded above, it fails without
 producing a proof.
+
+## Benchmarks
+
+Performance comparisons of `by lp` against Mathlib's `linarith`, plus
+the multi-carrier sweep over `Rat` / `Int` / `Dyadic` / `Nat` / `Real`,
+live in [`kim-em/soplex-benchmark`](https://github.com/kim-em/soplex-benchmark).
+On the same `ℚ` goals `lp` runs about 2x faster than `linarith`, and the
+native computable carriers (`Int`, `Dyadic`, `Nat`) beat the `Rat`
+baseline.
 
 ## Build
 
