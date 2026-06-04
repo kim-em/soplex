@@ -113,3 +113,33 @@ example (x₀ x₁ : Rat) (_h₁ : 0 ≤ x₀) (_h₂ : 0 ≤ x₁) (_h₃ : x�
 example (x : Rat) (_h₁ : 0 ≤ x) (_h₂ : x ≤ 2) : (1/2 : Rat) * x ≤ 1 := by
   maximize (1/2 : Rat) * x
   exact hbound
+
+/-! ## Into-form: `maximize <expr> ≤ m` introduces `let m := N` and `… ≤ m`. -/
+
+-- Unnamed into-form: `let m : Rat := 36` plus `hbound : 3*x₀+5*x₁ ≤ m`.
+example (x₀ x₁ : Rat) (_h₁ : 0 ≤ x₀) (_h₂ : 0 ≤ x₁) (_h₃ : x₀ ≤ 4)
+    (_h₄ : 2 * x₁ ≤ 12) (_h₅ : 3 * x₀ + 2 * x₁ ≤ 18) :
+    3 * x₀ + 5 * x₁ ≤ 36 := by
+  maximize 3 * x₀ + 5 * x₁ ≤ m
+  exact hbound
+
+-- Named into-form: `maximize h0 : <expr> ≤ m`.
+example (x : Rat) (_h₁ : 0 ≤ x) (_h₂ : x ≤ 4) : 3 * x + 7 ≤ 19 := by
+  maximize h0 : 3 * x + 7 ≤ m
+  exact h0
+
+-- The let value is definitionally the maximum, so `m` reduces to the numeral.
+example (x : Rat) (_h₁ : 0 ≤ x) (_h₂ : x ≤ 4) : True := by
+  maximize 3 * x ≤ m
+  have : m = 12 := rfl
+  trivial
+
+-- Negative objective into-form exercises the canonicalization sign-flip.
+example (x : Rat) (_h : 0 ≤ x) : -x ≤ 0 := by
+  maximize -x ≤ m
+  exact hbound
+
+-- Degenerate (constant) into-form: no carrier locals, `m := 7`.
+example : (7 : Rat) ≤ 7 := by
+  maximize (7 : Rat) ≤ m
+  exact hbound
