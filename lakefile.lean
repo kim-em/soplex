@@ -38,6 +38,14 @@ def sanitizerArgs : Array String :=
 
 def soplexFFIRoot : FilePath := __dir__ / defaultPackagesDir / "SoplexFFI"
 
+/-- The Lean toolchain's own `lib` directory, passed by CI as `-KleanLibDir=...`
+    (`$(lean --print-prefix)/lib`). Used only by the sanitizer lane (below) to put
+    the toolchain libc++ ahead of the `-L/usr/lib*` dirs that lane also needs. -/
+def leanLibDirArgs : Array String :=
+  match get_config? leanLibDir with
+  | some d => #[s!"-L{d}"]
+  | none => #[]
+
 def soplexFFIRuntimeLinkArgs : Array String :=
   if System.Platform.isOSX then
     #[]
@@ -51,11 +59,27 @@ def soplexFFIRuntimeLinkArgs : Array String :=
       "-lgcc_s",
       "-lmingwex",
       "-lmsvcrt"]
-  else
+  else if sanitizerEnabled then
+    -- Sanitizer lane: the ASan runtime link needs `-lresolv` etc. from the
+    -- `-L/usr/lib*` dirs, but those dirs also hold Ubuntu's `libc++.so` and would
+    -- shadow the toolchain libc++ for `-lc++` (same failure as the default lane).
+    -- So put the toolchain `lib` dir (`-KleanLibDir`, set by CI) FIRST, ahead of
+    -- `/usr/lib*`, so `-lc++` still binds to the toolchain's libc++.
+    leanLibDirArgs ++
     #["-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",
       "-L/usr/lib"] ++ sanitizerArgs
+  else
+    -- Default Linux lane: do NOT add `-L/usr/lib/x86_64-linux-gnu` (etc.). Those
+    -- dirs hold Ubuntu's `libc++.so`, and a command-line `-L` is searched *before*
+    -- the toolchain's own lib dir, so they shadow the Lean toolchain's libc++ for
+    -- `-lc++`. Ubuntu's libc++ 18 does not export the C++20 symbols
+    -- (`std::__1::__hash_memory`, `__atomic_wait_native`) that the toolchain-built
+    -- `libleanrt.a`/`libleancpp.a` reference (the toolchain's own libc++ does), so
+    -- the shadow caused "undefined symbol" link failures with `precompileModules`
+    -- on v4.31. GMP/Boost resolve via the toolchain clang's default search dirs.
+    #[]
 
 package Soplex where
   moreLinkArgs := soplexFFIRuntimeLinkArgs
