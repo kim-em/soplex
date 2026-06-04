@@ -8,20 +8,20 @@ open System Lake DSL
 -/
 
 require LPCore from git "https://github.com/kim-em/lp-core" @
-  "6d06bdeb46c8c90bc721076b3ce11c4e15e4bd34"
+  "66ac782a11ba2f8c2d3b4ad446000cf20b3f39b7"
 
 require LPVerify from git "https://github.com/kim-em/lp-verify" @
-  "018bfe96da96"
+  "e11fa03103dea73fa238c86522018a7267b824c2"
 
 require LPTactic from git "https://github.com/kim-em/lp-tactic" @
-  "d60829e776c3968ba35382bb9a61626f01997f35"
+  "809fd8a09506213e50b6198dd6261166f4d78b54"
 
 require LPBackendSoplexFFI from git
   "https://github.com/kim-em/lp-backend-soplex-ffi" @
-  "5891f7dff3fb"
+  "0c616e7cf92f5fbe1c9897587a9f26925c514798"
 
 require SoplexFFI from git "https://github.com/kim-em/soplex-ffi" @
-  "9dfd7c6bd7d9"
+  "b1cafbcd456cf999c06ab8207e054e9429e9d7bc"
 
 def sanitizerEnabled : Bool :=
   match get_config? sanitize with
