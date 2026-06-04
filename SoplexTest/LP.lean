@@ -3,6 +3,17 @@ import Soplex
 /-!
 `lp` tactic probes for atomic affine `Rat` goals with non-strict
 hypotheses.
+
+**Mirrored at
+`kim-em/lp-backend-pure:LPBackendPureTest/LPParity.lean`**, which
+rebuilds these cases with only `LPBackendPure` registered (no FFI)
+and is the gate for the `LPBackendPure` ↔ `LPBackendSoplexFFI`
+feature-parity claim. **When adding or modifying tests here, sync
+the change to that file too.** Two cases (`: False` and bare-`Prop`
+goals from contradictory hypotheses) are intentionally omitted
+there because the pinned `LPTactic` rejects them before backend
+dispatch; once `kim-em/lp-tactic#5` is resolved and the pin moves,
+they should be added.
 -/
 
 -- Two-row optimal certificates verify after the solver returns `optimal`,
