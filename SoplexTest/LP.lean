@@ -10,10 +10,10 @@ rebuilds these cases with only `LPBackendPure` registered (no FFI)
 and is the gate for the `LPBackendPure` ↔ `LPBackendSoplexFFI`
 feature-parity claim. **When adding or modifying tests here, sync
 the change to that file too.** Two cases (`: False` and bare-`Prop`
-goals from contradictory hypotheses) are intentionally omitted
-there because the pinned `LPTactic` rejects them before backend
-dispatch; once `kim-em/lp-tactic#5` is resolved and the pin moves,
-they should be added.
+goals from contradictory hypotheses) are currently omitted there
+because `LPBackendPure`'s `LPTactic` pin predates the
+`kim-em/lp-tactic#5` fix that accepts those goal shapes; they
+should be added once the pin is bumped.
 -/
 
 -- Two-row optimal certificates verify after the solver returns `optimal`,
