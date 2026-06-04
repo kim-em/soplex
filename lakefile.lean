@@ -38,6 +38,14 @@ def sanitizerArgs : Array String :=
 
 def soplexFFIRoot : FilePath := __dir__ / defaultPackagesDir / "SoplexFFI"
 
+/-- The Lean toolchain's own `lib` directory, passed by CI as `-KleanLibDir=...`
+    (`$(lean --print-prefix)/lib`). Used only by the sanitizer lane (below) to put
+    the toolchain libc++ ahead of the `-L/usr/lib*` dirs that lane also needs. -/
+def leanLibDirArgs : Array String :=
+  match get_config? leanLibDir with
+  | some d => #[s!"-L{d}"]
+  | none => #[]
+
 def soplexFFIRuntimeLinkArgs : Array String :=
   if System.Platform.isOSX then
     #[]
@@ -52,11 +60,12 @@ def soplexFFIRuntimeLinkArgs : Array String :=
       "-lmingwex",
       "-lmsvcrt"]
   else if sanitizerEnabled then
-    -- Sanitizer lane only: `precompileModules` is off here, so the exes link the
-    -- self-contained dynamic `libleanshared` (no static `libleanrt.a`), and these
-    -- `-L/usr/lib*` dirs are needed to find `-lresolv` etc. for the ASan runtime.
-    -- They do NOT shadow the toolchain libc++ in this lane because nothing here
-    -- statically pulls libleanrt's libc++ references.
+    -- Sanitizer lane: the ASan runtime link needs `-lresolv` etc. from the
+    -- `-L/usr/lib*` dirs, but those dirs also hold Ubuntu's `libc++.so` and would
+    -- shadow the toolchain libc++ for `-lc++` (same failure as the default lane).
+    -- So put the toolchain `lib` dir (`-KleanLibDir`, set by CI) FIRST, ahead of
+    -- `/usr/lib*`, so `-lc++` still binds to the toolchain's libc++.
+    leanLibDirArgs ++
     #["-L/usr/lib/x86_64-linux-gnu",
       "-L/usr/lib/aarch64-linux-gnu",
       "-L/usr/lib64",

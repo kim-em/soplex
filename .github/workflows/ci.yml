@@ -177,7 +177,7 @@ jobs:
           echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/SoplexTest/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
 
       - name: Build sanitized Lean targets
-        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 Soplex ffi-check quickstart-example
+        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 "-KleanLibDir=$(lean --print-prefix)/lib" Soplex ffi-check quickstart-example
 
       - name: Run ffi-check under ASan/UBSan
         run: |
@@ -194,7 +194,7 @@ jobs:
           echo "$out" | grep -Fqx 'optimal x = #[2, 6]'
 
       - name: Build sanitized test targets
-        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 test-runner verify-tests solve-exact-tests solve-float-tests solve-compare-tests solve-verified-tests accessor-goldens file-io-tests
+        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 "-KleanLibDir=$(lean --print-prefix)/lib" test-runner verify-tests solve-exact-tests solve-float-tests solve-compare-tests solve-verified-tests accessor-goldens file-io-tests
 
       - name: Run sanitized test suite
         run: ./.lake/build/bin/test-runner -Ksanitize=1
