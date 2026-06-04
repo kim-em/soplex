@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPTactic.LP.Parse` (`leanprover/lp-tactic`).
 -/
+module
 
-import LPTactic.LP.Parse
+public meta import LPTactic.LP.Parse
+
+@[expose] public section

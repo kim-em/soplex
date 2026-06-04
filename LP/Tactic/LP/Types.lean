@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPTactic.LP.Types` (`leanprover/lp-tactic`).
 -/
+module
 
-import LPTactic.LP.Types
+public meta import LPTactic.LP.Types
+
+@[expose] public section

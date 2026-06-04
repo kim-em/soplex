@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPTactic.LP.Frontend` (`leanprover/lp-tactic`).
 -/
+module
 
-import LPTactic.LP.Frontend
+public meta import LPTactic.LP.Frontend
+
+@[expose] public section

@@ -12,7 +12,10 @@
   https://github.com/leanprover/lp/issues/50 for the design. Until
   then this meta-import is the seam.
 -/
+module
 
-import LP.Basic
-import LP.Tactic.LP
-import LP.Backend.SoplexFFI
+public import LP.Basic
+public meta import LP.Tactic.LP
+public import LP.Backend.SoplexFFI
+
+@[expose] public section

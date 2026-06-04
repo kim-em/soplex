@@ -6,5 +6,8 @@
   backend agree on the same `Problem`, `Solution`, and certificate
   structures without anyone depending on the FFI build.
 -/
+module
 
-import LPCore.Types
+public import LPCore.Types
+
+@[expose] public section

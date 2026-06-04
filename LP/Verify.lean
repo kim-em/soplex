@@ -29,12 +29,15 @@
   SoPlex is treated as an oracle; accepted certificates are checked
   here before producing proofs.
 -/
+module
 
-import LP.Verify.Types
-import LP.Verify.Validate
-import LP.Verify.Bool
-import LP.Verify.Budget
-import LP.Verify.Arith
-import LP.Verify.Prop
-import LP.Verify.Sound
-import LP.Verify.Driver
+public import LP.Verify.Types
+public import LP.Verify.Validate
+public import LP.Verify.Bool
+public import LP.Verify.Budget
+public import LP.Verify.Arith
+public import LP.Verify.Prop
+public import LP.Verify.Sound
+public import LP.Verify.Driver
+
+@[expose] public section

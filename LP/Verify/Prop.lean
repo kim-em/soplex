@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPVerify.Prop` (`leanprover/lp-verify`).
 -/
+module
 
-import LPVerify.Prop
+public import LPVerify.Prop
+
+@[expose] public section

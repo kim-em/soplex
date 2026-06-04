@@ -6,5 +6,8 @@
   `import LP` (which transitively imports this module) gets the
   `"soplex-ffi"` backend installed in the registry at priority 10.
 -/
+module
 
-import LPBackendSoplexFFI.Adapter
+public import LPBackendSoplexFFI.Adapter
+
+@[expose] public section
