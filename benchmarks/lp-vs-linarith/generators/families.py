@@ -6,7 +6,7 @@ from fractions import Fraction
 
 family, n, tac = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 tac = "lp" if tac == "lp" else "linarith"
-H = ["import Soplex", "import Mathlib.Tactic.Linarith", "set_option maxHeartbeats 4000000"]
+H = ["import LP", "import Mathlib.Tactic.Linarith", "set_option maxHeartbeats 4000000"]
 
 def emit(binders, hyps, goal):
     print("\n".join(H))

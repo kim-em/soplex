@@ -14,5 +14,5 @@ for i in range(n):
     hyps.append(f"(_h{i+1} : {lhs} ≥ {b[i]})")
 # tight goal: Σx ≥ v*  (v* exact rational)
 vlit = f"({v.numerator} / {v.denominator} : Rat)"
-print("import Soplex\nimport Mathlib.Tactic.Linarith\nset_option maxHeartbeats 4000000")
+print("import LP\nimport Mathlib.Tactic.Linarith\nset_option maxHeartbeats 4000000")
 print(f"example ({binders}) {' '.join(hyps)} :\n    {' + '.join(vs)} ≥ {vlit} := by {tac}")

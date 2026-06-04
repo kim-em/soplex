@@ -1,11 +1,11 @@
 # `lp` Proof Construction
 
 This document describes where the `lp` tactic constructs Lean
-proof-facing `Expr` values in `Soplex/Tactic/LP.lean`, and which
+proof-facing `Expr` values in `LP/Tactic/LP.lean`, and which
 construction sites are intentionally delayed until a successful
 certificate needs them.
 
-## `Soplex/Tactic/LP.lean`
+## `LP/Tactic/LP.lean`
 
 | Site | Role | Construction cost | Design |
 | --- | --- | --- | --- |

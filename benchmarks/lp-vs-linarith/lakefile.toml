@@ -8,7 +8,7 @@ name = "lp-vs-linarith"
 defaultTargets = ["LPvsLinarith"]
 
 [[require]]
-name = "Soplex"
+name = "LP"
 path = "../.."
 
 [[require]]

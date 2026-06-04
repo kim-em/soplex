@@ -1,27 +1,27 @@
 import Lake
 open System Lake DSL
 
-/-! # `Soplex` build configuration
+/-! # `LP` build configuration
 
   The direct SoPlex binding lives in the `SoplexFFI` package.
   This package builds the high-level verified API on top of it.
 -/
 
-require LPCore from git "https://github.com/kim-em/lp-core" @
-  "66ac782a11ba2f8c2d3b4ad446000cf20b3f39b7"
+require LPCore from git "https://github.com/leanprover/lp-core" @
+  "70ca150585f8439a830374b5bec602d391addbc9"
 
-require LPVerify from git "https://github.com/kim-em/lp-verify" @
-  "e11fa03103dea73fa238c86522018a7267b824c2"
+require LPVerify from git "https://github.com/leanprover/lp-verify" @
+  "e8e337f4b6c6f666b5dc7b43bc1ae6cc9d15fa05"
 
-require LPTactic from git "https://github.com/kim-em/lp-tactic" @
-  "809fd8a09506213e50b6198dd6261166f4d78b54"
+require LPTactic from git "https://github.com/leanprover/lp-tactic" @
+  "3f1309f8f3cda3c1f67a0af70eb68eb5836f38fa"
 
 require LPBackendSoplexFFI from git
-  "https://github.com/kim-em/lp-backend-soplex-ffi" @
-  "0c616e7cf92f5fbe1c9897587a9f26925c514798"
+  "https://github.com/leanprover/lp-backend-soplex-ffi" @
+  "9d0f8cf9f19ee76d334eb792953ee9ff4821f9fc"
 
-require SoplexFFI from git "https://github.com/kim-em/soplex-ffi" @
-  "b1cafbcd456cf999c06ab8207e054e9429e9d7bc"
+require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @
+  "0849137dd4d7ad68edb9c616a6e9f9a7625be529"
 
 def sanitizerEnabled : Bool :=
   match get_config? sanitize with
@@ -81,17 +81,17 @@ def soplexFFIRuntimeLinkArgs : Array String :=
     -- on v4.31. GMP/Boost resolve via the toolchain clang's default search dirs.
     #[]
 
-package Soplex where
+package LP where
   moreLinkArgs := soplexFFIRuntimeLinkArgs
 
 @[default_target]
-lean_lib Soplex where
-  roots := #[`Soplex]
-  globs := #[`Soplex, `Soplex.Basic, `Soplex.Verify, `Soplex.Verify.+,
-             `Soplex.LP.Core, `Soplex.Backend.SoplexFFI]
+lean_lib LP where
+  roots := #[`LP]
+  globs := #[`LP, `LP.Basic, `LP.Verify, `LP.Verify.+,
+             `LP.Core, `LP.Backend.SoplexFFI]
   precompileModules := true
   -- Keep the native runtime link arguments on the downstream library as
-  -- well as the package. `Soplex.Basic` imports and calls the FFI during
+  -- well as the package. `LP.Basic` imports and calls the FFI during
   -- elaboration-time probes, so its shared-library link step must resolve
   -- the same platform libraries as the final executables.
   moreLinkArgs := soplexFFIRuntimeLinkArgs
@@ -100,59 +100,59 @@ lean_lib Soplex where
   -- link picks up `moreLinkArgs`, which on Windows names the staged
   -- `vendor/mingw-libs/*.a` archives. Those archives are staged as a
   -- side effect of the `SoplexFFI` native build. Pure-Lean modules such
-  -- as `Soplex.Tactic.*` import nothing from `SoplexFFI`, so
+  -- as `LP.Tactic.*` import nothing from `SoplexFFI`, so
   -- without this dependency their dynlib link can run first and fail
   -- with `no such file or directory` on the not-yet-staged archives.
   needs := #[BuildKey.packageTarget `SoplexFFI `soplexffi]
 
-/-- Shared scaffolding for the `SoplexTest/` executables. Keeping it as
-    a `lean_lib` lets each test exe pick up `SoplexTest.Common` and
-    `SoplexTest.SolveCommon` as compiled dependencies. -/
-lean_lib SoplexTest where
-  roots := #[`SoplexTest.Common, `SoplexTest.SolveCommon]
+/-- Shared scaffolding for the `LPTest/` executables. Keeping it as
+    a `lean_lib` lets each test exe pick up `LPTest.Common` and
+    `LPTest.SolveCommon` as compiled dependencies. -/
+lean_lib LPTest where
+  roots := #[`LPTest.Common, `LPTest.SolveCommon]
 
 /-- The `by lp` / `maximize` tactic tests. Building this library elaborates every
     `example := by lp`, exercising the carrier-parametrized tactic end to end
     against the FFI backend — atomic, `∃`, `maximize`, inner-`∀`, Benders, and
     scaling over `Rat`, plus the `Int`/`Dyadic`/`Nat` carrier lanes. -/
-lean_lib SoplexLPTest where
-  roots := #[`SoplexTest.LP, `SoplexTest.LPExistential, `SoplexTest.LPMaximize,
-             `SoplexTest.LPInnerForall, `SoplexTest.LPBenders, `SoplexTest.LPScaling,
-             `SoplexTest.LPInt, `SoplexTest.LPDyadic, `SoplexTest.LPNat,
-             `SoplexTest.LPReject]
+lean_lib LPTacticTest where
+  roots := #[`LPTest.LP, `LPTest.LPExistential, `LPTest.LPMaximize,
+             `LPTest.LPInnerForall, `LPTest.LPBenders, `LPTest.LPScaling,
+             `LPTest.LPInt, `LPTest.LPDyadic, `LPTest.LPNat,
+             `LPTest.LPReject]
 
 /-- End-to-end FFI runtime check: prints the SoPlex version, runs the
     cross-stdlib ABI throw/catch test, and runs a small LP sanity check.
     Used by CI to confirm the binding links, loads, and computes on every
     platform. -/
 lean_exe «ffi-check» where
-  root := `SoplexTest.FFICheck
+  root := `LPTest.FFICheck
 
 lean_exe «verify-tests» where
-  root := `SoplexTest.Verify
+  root := `LPTest.Verify
 
 lean_exe «solve-exact-tests» where
-  root := `SoplexTest.SolveExact
+  root := `LPTest.SolveExact
 
 lean_exe «solve-float-tests» where
-  root := `SoplexTest.SolveFloat
+  root := `LPTest.SolveFloat
 
 lean_exe «solve-compare-tests» where
-  root := `SoplexTest.SolveCompare
+  root := `LPTest.SolveCompare
 
 lean_exe «solve-verified-tests» where
-  root := `SoplexTest.SolveVerified
+  root := `LPTest.SolveVerified
 
 lean_exe «accessor-goldens» where
-  root := `SoplexTest.AccessorGoldens
+  root := `LPTest.AccessorGoldens
 
 lean_exe «file-io-tests» where
-  root := `SoplexTest.FileIo
+  root := `LPTest.FileIo
 
 /-- `lake test` driver: builds and runs every test executable. -/
 @[test_driver]
 lean_exe «test-runner» where
-  root := `SoplexTest.Runner
+  root := `LPTest.Runner
 
 lean_exe «quickstart-example» where
   root := `Examples.Quickstart

@@ -1,6 +1,6 @@
 # `lp` vs `linarith` — comparison report
 
-**Subject.** Wall-clock comparison of Soplex's `lp` tactic against
+**Subject.** Wall-clock comparison of LP's `lp` tactic against
 Mathlib's `linarith` on linear-arithmetic goals over `Rat`, as `lp`
 currently behaves on `main`.
 
@@ -54,7 +54,7 @@ harness is reproducible without re-running them.
 The minimum possible work is a single hypothesis on a single variable;
 both tactics should pay only the import / per-invocation cost. After the
 first cold-cache invocation the per-invocation floor is **~3.0–3.2 s** —
-the cost of `lake env lean` plus loading the oleans of Soplex +
+the cost of `lake env lean` plus loading the oleans of LP +
 Mathlib's `Linarith`. Single-seed integer-family data at small N:
 
 | N | `lp` | `linarith` |

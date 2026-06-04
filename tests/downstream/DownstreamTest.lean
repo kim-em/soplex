@@ -1,11 +1,11 @@
-import Soplex
+import LP
 
 /-!
 Downstream-package smoke tests for the `lp` tactic.
 
 These exist to catch the class of bug where `lp` works inside the
-Soplex package but fails when invoked from a project that requires
-Soplex as a dependency (e.g. due to FFI dylib resolution differences,
+LP package but fails when invoked from a project that requires
+LP as a dependency (e.g. due to FFI dylib resolution differences,
 stale `.lake/packages/SoplexFFI` artefacts on a bump, or any other
 in-tree-vs-downstream divergence).
 

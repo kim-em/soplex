@@ -20,7 +20,7 @@ import sys
 n = int(sys.argv[1]); tactic = sys.argv[2]
 seed = int(sys.argv[3]) if len(sys.argv) > 3 else n
 vars_, A, b = gen_dense(n, seed=seed)
-print("import Soplex")
+print("import LP")
 print("import Mathlib.Tactic.Linarith")
 print("set_option maxHeartbeats 4000000")
 print(render(vars_, A, b, tactic))

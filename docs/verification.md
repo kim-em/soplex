@@ -1,8 +1,8 @@
 # Verification and Trust Model
 
-Soplex treats SoPlex as an unverified mathematical oracle. SoPlex may
+LP treats SoPlex as an unverified mathematical oracle. SoPlex may
 find exact certificates, but every certificate must be checked by the
-pure-Lean verifier before Soplex exposes a proof-carrying result.
+pure-Lean verifier before LP exposes a proof-carrying result.
 Incorrect certificates, including certificates affected by solver bugs
 or sign-convention translation mistakes, are rejected and surfaced as
 `Verified.unchecked`.
@@ -76,7 +76,7 @@ the budget, the verified path returns
 
 ## Related Code
 
-The high-level API and driver live in [`Soplex/Basic.lean`](../Soplex/Basic.lean)
-and [`Soplex/Verify/Driver.lean`](../Soplex/Verify/Driver.lean). The
+The high-level API and driver live in [`LP/Basic.lean`](../LP/Basic.lean)
+and [`LP/Verify/Driver.lean`](../LP/Verify/Driver.lean). The
 certificate types, validation code, soundness lemmas, and budget checks
-are under [`Soplex/Verify/`](../Soplex/Verify/).
+are under [`LP/Verify/`](../LP/Verify/).

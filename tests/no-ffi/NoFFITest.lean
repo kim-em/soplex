@@ -20,7 +20,7 @@ import LPCore
 import LPVerify
 import LPTactic
 
-open Soplex Soplex.LP
+open LP LP
 
 /-- The empty 0×0 LP: trivially feasible, trivially optimal at the
     empty assignment. Lets us name a `Problem` value to keep the

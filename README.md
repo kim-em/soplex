@@ -1,76 +1,28 @@
-# Soplex
+# LP
 
 [![Lean](https://img.shields.io/badge/Lean-4.31.0--rc1-blue.svg)](./lean-toolchain)
-[![License](https://img.shields.io/github/license/kim-em/soplex.svg)](./LICENSE)
+[![License](https://img.shields.io/github/license/leanprover/lp.svg)](./LICENSE)
 
-Lean verified certificate checking for [SoPlex](https://soplex.zib.de/), the linear programming solver from the SCIP optimization suite.
+Linear programming in Lean 4: the `lp` and `maximize` tactics for discharging
+linear-arithmetic goals, and a verified solver that runs
+[SoPlex](https://soplex.zib.de/) (the LP solver from the SCIP optimization
+suite) and checks its exact certificate in Lean before returning a
+proof-carrying result. SoPlex is an untrusted oracle — every certificate is
+validated by a pure-Lean checker, so a solver bug can never yield an unsound
+proof.
 
-This repository (`kim-em/soplex`) is the high-level Lean
-meta-package. It sits on top of five dependencies:
-[`kim-em/lp-core`](https://github.com/kim-em/lp-core) (pure-Lean LP
-type vocabulary — `Problem`, `Options`, `Solution`, `Certificate`,
-`SolveError`, plus the `LPBackend` record),
-[`kim-em/lp-verify`](https://github.com/kim-em/lp-verify) (pure-Lean
-certificate checker — `Verified`, `verifyOutcome`, soundness
-lemmas), [`kim-em/lp-tactic`](https://github.com/kim-em/lp-tactic)
-(the `by lp` and `maximize` tactics, the `LPBackend` registry, and
-the `solveVerifiedWith` driver),
-[`kim-em/lp-backend-soplex-ffi`](https://github.com/kim-em/lp-backend-soplex-ffi)
-(the production-grade FFI adapter that registers under priority 10
-and provides the synchronous `solveVerified` driver), and
-[`kim-em/soplex-ffi`](https://github.com/kim-em/soplex-ffi) (the
-vendored SoPlex build, the C++ FFI wrapper, and the direct Lean
-bindings). On top of those, `Soplex` adds:
-
-* a **pure-Lean certificate checker** (`Soplex.Verify`);
-* `solveVerified`, a driver that runs SoPlex and validates its exact
-  certificate against the original problem before returning a
-  proof-carrying result;
-* exact-mode and floating-point LP solves, plus MPS / LP file I/O
-  (re-exported from `SoplexFFI`);
-* fast user tactics `lp` (which handles quantifier elimination) and `maximize`.
-
-## Composition
-
-`by lp` and `solveVerifiedWith` dispatch through a backend registry
-in `lp-tactic`. The meta-package bundles the FFI backend by
-default, but other backends slot into the same registry. Depend
-directly on one (instead of `Soplex`) if you want a slimmer build
-graph:
-
-- **[`kim-em/lp-backend-soplex-ffi`](https://github.com/kim-em/lp-backend-soplex-ffi)**
-  (priority 10, the default). Production-grade native binding to
-  the vendored SoPlex build; what `import Soplex` resolves to.
-- **[`kim-em/lp-backend-soplex-json`](https://github.com/kim-em/lp-backend-soplex-json)**
-  (priority 50, scaffold). Will drive an externally-installed
-  `soplex` binary on `$PATH` through a JSON stdio protocol; the
-  wire format is documented in the repository's
-  `docs/json-contract.md`, but the encoder/decoder is not yet
-  implemented — registering the package today gets the probe and
-  the registry slot, not a working solver. Aimed at the "I've
-  already got `brew install soplex`, don't rebuild it" case.
-- **[`kim-em/lp-backend-pure`](https://github.com/kim-em/lp-backend-pure)**
-  (priority 100, scaffold). Reserves the registry slot for a
-  pure-Lean LP solver with zero native deps and zero subprocess
-  calls. The simplex implementation has not landed yet, so
-  registering the package today returns a structured "simplex
-  not implemented" error from `solveExact`. When it does land,
-  expect it to be slow on anything beyond toy LPs (exact-rational
-  simplex pays for the verifier's exact-rational input contract);
-  the point is zero-install CI lanes and demos.
-
-Per-call backend selection happens through the registry; importing
-multiple backend packages is fine, the lowest-priority one with a
-successful probe wins. See
-[`kim-em/lp-tactic`](https://github.com/kim-em/lp-tactic) for the
-registry surface.
+Jump straight into the [Quickstart](#quickstart). LP is sliced into small
+packages (a pure checker, the tactics, and pluggable solver backends); if you
+want only part of it or a different backend, see
+[Just the verified solver](#just-the-verified-solver-no-tactics),
+[Choosing a backend](#choosing-a-backend), and [Packages](#packages) below.
 
 ## Quickstart
 
-Add `Soplex` to your `lakefile.lean`:
+Add `LP` to your `lakefile.lean`:
 
 ```lean
-require Soplex from git "https://github.com/kim-em/soplex" @ "main"
+require LP from git "https://github.com/leanprover/lp" @ "main"
 ```
 
 This example maximizes `3 x₀ + 5 x₁` subject to
@@ -78,8 +30,8 @@ This example maximizes `3 x₀ + 5 x₁` subject to
 (textbook example; optimum is `x = (2, 6)` with objective `36`):
 
 ```lean
-import Soplex
-open Soplex Soplex.Verify
+import LP
+open LP LP.Verify
 
 -- Proving theorems via `lp` is usually faster than Mathlib's `linarith`.
 example (x₀ x₁ : Rat) (_ : x₀ ≤ 4) (_ : 2 * x₁ ≤ 12) (_ : 3 * x₀ + 2 * x₁ ≤ 18)
@@ -140,7 +92,7 @@ explicit-proof-term constructor.
 ### `lp` 
 
 ```lean
-import Soplex
+import LP
 
 example : (1 : Rat) < 2 := by lp
 
@@ -197,11 +149,77 @@ If hypotheses are inconsistent, `maximize` closes the surrounding
 goal by `False.elim`. If the LP is unbounded above, it fails without
 producing a proof.
 
+## Just the verified solver (no tactics)
+
+If you don't need the `lp` / `maximize` tactics and only want verified LP
+solving — or just the checker — depend on a narrower slice instead of `LP`:
+
+- **[`leanprover/lp-backend-soplex-ffi`](https://github.com/leanprover/lp-backend-soplex-ffi)**
+  gives you `solveVerified`: run SoPlex and get back a `Solution` carrying a
+  Lean-checked certificate, without the tactic frontend.
+- **[`leanprover/lp-verify`](https://github.com/leanprover/lp-verify)** is the
+  pure-Lean certificate checker on its own — no native dependencies, no SoPlex
+  build. Use it to validate certificates your own code (or another solver)
+  produced against the
+  [`leanprover/lp-core`](https://github.com/leanprover/lp-core) `Problem` /
+  `Certificate` types.
+
+## Choosing a backend
+
+`by lp`, `solveVerifiedWith`, and the verified drivers dispatch through a
+backend registry that lives in
+[`leanprover/lp-tactic`](https://github.com/leanprover/lp-tactic). `LP` bundles
+the FFI backend by default; to use a different one, `require` exactly the
+backend you want. Importing several is fine — the lowest-priority backend whose
+probe succeeds wins:
+
+- **[`leanprover/lp-backend-soplex-ffi`](https://github.com/leanprover/lp-backend-soplex-ffi)**
+  (priority 10, the default). Production-grade native binding to the vendored
+  SoPlex build; what `import LP` resolves to.
+- **[`leanprover/lp-backend-soplex-json`](https://github.com/leanprover/lp-backend-soplex-json)**
+  (priority 50, scaffold). Will drive an externally-installed `soplex` binary on
+  `$PATH` through a JSON stdio protocol; the wire format is documented in the
+  repository's `docs/json-contract.md`, but the encoder/decoder is not yet
+  implemented — registering the package today gets the probe and the registry
+  slot, not a working solver. Aimed at the "I've already got `brew install
+  soplex`, don't rebuild it" case.
+- **[`leanprover/lp-backend-pure`](https://github.com/leanprover/lp-backend-pure)**
+  (priority 100, scaffold). Reserves the registry slot for a pure-Lean LP solver
+  with zero native deps and zero subprocess calls. The simplex implementation
+  has not landed yet, so registering the package today returns a structured
+  "simplex not implemented" error from `solveExact`. When it does land, expect
+  it to be slow on anything beyond toy LPs (exact-rational simplex pays for the
+  verifier's exact-rational input contract); the point is zero-install CI lanes
+  and demos.
+
+See [`leanprover/lp-tactic`](https://github.com/leanprover/lp-tactic) for the
+registry surface (`registerBackend`, `resolveBackend`, `availableBackends`).
+
+## Packages
+
+`LP` is a thin meta-package: it bundles the default FFI backend and re-exports a
+convenient surface, so `import LP` gives you the tactics, `solveVerified`, and
+MPS / LP file I/O in one import. The actual work lives in its dependencies:
+
+- **[`leanprover/lp-core`](https://github.com/leanprover/lp-core)** — the shared
+  LP vocabulary (`Problem`, `Options`, `Solution`, `Certificate`, `SolveError`)
+  and the `LPBackend` record. Pure Lean.
+- **[`leanprover/lp-verify`](https://github.com/leanprover/lp-verify)** — the
+  pure-Lean certificate checker (`Verified`, `verifyOutcome`, soundness lemmas).
+- **[`leanprover/lp-tactic`](https://github.com/leanprover/lp-tactic)** — the
+  `lp` and `maximize` tactics, the backend registry, and the backend-pluggable
+  `solveVerifiedWith` driver.
+- **[`leanprover/lp-backend-soplex-ffi`](https://github.com/leanprover/lp-backend-soplex-ffi)**
+  — the FFI backend adapter (priority 10) and the synchronous `solveVerified`
+  driver.
+- **[`leanprover/soplex-ffi`](https://github.com/leanprover/soplex-ffi)** — the
+  vendored SoPlex build, the C++ FFI wrapper, and the direct Lean bindings.
+
 ## Benchmarks
 
 Performance comparisons of `by lp` against Mathlib's `linarith`, plus
 the multi-carrier sweep over `Rat` / `Int` / `Dyadic` / `Nat` / `Real`,
-live in [`kim-em/soplex-benchmark`](https://github.com/kim-em/soplex-benchmark).
+live in [`leanprover/lp-benchmark`](https://github.com/leanprover/lp-benchmark).
 On the same `ℚ` goals `lp` runs about 2x faster than `linarith`, and the
 native computable carriers (`Int`, `Dyadic`, `Nat`) beat the `Rat`
 baseline.
@@ -222,7 +240,7 @@ System dependencies:
 Clone and build through Lake:
 
 ```bash
-git clone https://github.com/kim-em/soplex
+git clone https://github.com/leanprover/lp
 cd soplex
 lake exe quickstart-example
 lake test
@@ -235,8 +253,8 @@ itself.
 `quickstart-example` runs the verified solve from the
 [Quickstart](#quickstart) above and prints `optimal x = #[2, 6]`.
 `lake test` builds and runs the full test suite under
-[`SoplexTest/`](./SoplexTest). The suite includes
-`SoplexTest/FFIProbe.lean`, which calls `solveVerified` from inside a
+[`LPTest/`](./LPTest). The suite includes
+`LPTest/FFIProbe.lean`, which calls `solveVerified` from inside a
 tactic and checks the elaboration-time FFI loading path used by future
 tactics. For a lower-level FFI-only check
 (SoPlex version, throw/catch ABI, small LP sanity check via the direct
@@ -270,15 +288,15 @@ in [`docs/verification.md`](./docs/verification.md).
 ## Layout
 
 ```
-Soplex.lean                   # top-level import
-Soplex/Basic.lean             # high-level API + `solveVerified`
-Soplex/LP/Core.lean           # re-exports `LPCore.Backend` + registry
-Soplex/Backend/SoplexFFI.lean # SoPlex FFI backend adapter
-Soplex/Tactic/                # `lp` and `maximize` tactics
+LP.lean                   # top-level import
+LP/Basic.lean             # high-level API + `solveVerified`
+LP/Core.lean              # re-exports `LPCore.Backend` + registry
+LP/Backend/SoplexFFI.lean # SoPlex FFI backend adapter
+LP/Tactic/                # `lp` and `maximize` tactics
   LP.lean                     #   tactic frontend (elaboration + dispatch)
   Q.lean                      #   kernel-reducible rational literals for tactic proofs
-Soplex/Verify.lean            # verifier re-export module
-Soplex/Verify/                # pure-Lean certificate checker
+LP/Verify.lean            # verifier re-export module
+LP/Verify/                # pure-Lean certificate checker
   Types.lean                  #   re-exports `LPCore.Types` (`Problem`, `Certificate`, ...)
   Validate.lean               #   re-exports `LPCore.Validate`
   Driver.lean                 #   compose validate + solveExact + check
@@ -288,10 +306,10 @@ Soplex/Verify/                # pure-Lean certificate checker
 Examples/
   README.md                   # examples index
   Quickstart.lean             # quickstart example executable
-SoplexTest/                   # test suite (run via `lake test`)
+LPTest/                   # test suite (run via `lake test`)
   FFICheck.lean               #   `ffi-check` executable
-  Common.lean                 #   shared test scaffolding (`Soplex.Verify` only)
-  SolveCommon.lean            #   adds `Soplex` for SoPlex-backed tests
+  Common.lean                 #   shared test scaffolding (`LP.Verify` only)
+  SolveCommon.lean            #   adds `LP` for SoPlex-backed tests
   FFIProbe.lean               #   elaboration-time FFI loading regression probe
   LP*.lean                    #   tactic frontend and proof-term tests
   Solve*.lean, Verify.lean    #   solver and verifier regression tests
@@ -312,7 +330,7 @@ scripts/install-sanitizer-runtime.sh
 
 ## Licence
 
-`Soplex` is licensed under the [Apache License 2.0](./LICENSE),
+`LP` is licensed under the [Apache License 2.0](./LICENSE),
 matching SoPlex itself. The compiled binary's GMP runtime dependency
 (LGPL) is linked dynamically by default through `SoplexFFI`. SoPlex
 itself is linked into the Lean shared library from the vendored static

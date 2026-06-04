@@ -42,7 +42,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
+        run: lake build LP LPTacticTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -174,10 +174,10 @@ jobs:
 
       - name: Set UBSAN_OPTIONS with workspace-rooted suppressions
         run: |
-          echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/SoplexTest/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
+          echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:abort_on_error=1:suppressions=$GITHUB_WORKSPACE/LPTest/sanitizer-suppressions.supp" >> "$GITHUB_ENV"
 
       - name: Build sanitized Lean targets
-        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 "-KleanLibDir=$(lean --print-prefix)/lib" Soplex ffi-check quickstart-example
+        run: LD_PRELOAD="$ASAN_RUNTIME" lake build -Ksanitize=1 "-KleanLibDir=$(lean --print-prefix)/lib" LP ffi-check quickstart-example
 
       - name: Run ffi-check under ASan/UBSan
         run: |
@@ -238,7 +238,7 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build Soplex SoplexLPTest ffi-check quickstart-example
+        run: lake build LP LPTacticTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -299,11 +299,11 @@ jobs:
           echo "$ELAN_DIR_MSYS/bin" > .elan-path
           echo "$MINGW_PREFIX/bin" >> .elan-path
 
-      - name: Build Soplex and run ffi-check executable
+      - name: Build LP and run ffi-check executable
         run: |
           set -e
           export PATH="$(paste -sd: .elan-path):$PATH"
-          lake build Soplex SoplexLPTest ffi-check quickstart-example
+          lake build LP LPTacticTest ffi-check quickstart-example
 
           set +e
           ./.lake/build/bin/ffi-check.exe > /tmp/ffi-check.out 2>&1

@@ -16,6 +16,6 @@ for i in range(n):
     rows.append(f"(_h{i+1} : {lhs} ≤ {n})")
 nn = " ".join(f"(_n{i+1} : 0 ≤ {v})" for i,v in enumerate(vars_))
 goal = " + ".join(vars_)
-print("import Soplex"); print("import Mathlib.Tactic.Linarith")
+print("import LP"); print("import Mathlib.Tactic.Linarith")
 print("set_option maxHeartbeats 4000000")
 print(f"example ({' '.join(vars_)} : Rat) {nn} {' '.join(rows)} : {goal} ≤ {n*n} := by {tactic}")

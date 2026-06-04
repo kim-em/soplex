@@ -1,9 +1,9 @@
 # `lp` vs `linarith` — benchmark harness
 
-A self-contained Lake project that compares Soplex's `lp` tactic against
+A self-contained Lake project that compares LP's `lp` tactic against
 Mathlib's `linarith` on dense linear-arithmetic goals over `Rat`. It lives
-under the Soplex repo but is **not** built by default CI — it requires
-Mathlib (for `linarith`), which Soplex itself deliberately does not depend
+under the LP repo but is **not** built by default CI — it requires
+Mathlib (for `linarith`), which LP itself deliberately does not depend
 on. See [`REPORT.md`](./REPORT.md) for methodology and findings.
 
 ## Layout

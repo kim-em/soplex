@@ -1,31 +1,31 @@
 # LP backend abstraction
 
 Tracks the first step of the work described in
-https://github.com/kim-em/soplex/issues/50 ("Decouple the verifier
+https://github.com/leanprover/lp/issues/50 ("Decouple the verifier
 and tactic from SoPlex; design a backend abstraction").
 
 ## What landed
 
-* `Soplex.LP.Core` — the `LPBackend` record, a process-global
+* `LP.Core` — the `LPBackend` record, a process-global
   registry (`backendRegistry`), and the helpers `registerBackend`,
   `resolveBackend`, `availableBackends` (which probes registered
   backends and returns them sorted by `(defaultPriority, name)`).
-* `Soplex.Backend.SoplexFFI` — the FFI binding adapter. Exports
+* `LP.Backend.SoplexFFI` — the FFI binding adapter. Exports
   `def backend : LPBackend` with priority `10` and self-registers
   on import via an `initialize` block.
-* `Soplex.solveVerifiedWith` — backend-pluggable counterpart of
+* `LP.solveVerifiedWith` — backend-pluggable counterpart of
   `solveVerified`. Same pipeline (`validateOptions` → `validate` →
   `solveExact` → `verifyOutcome`), but dispatches the solve through
   the supplied `LPBackend`. Lives in `IO` because backends are
   `IO`-typed so a future subprocess or remote solver can plug in.
-* `import Soplex` continues to give you the FFI backend with no
+* `import LP` continues to give you the FFI backend with no
   configuration — the meta-module imports
-  `Soplex.Backend.SoplexFFI`, which triggers registration.
+  `LP.Backend.SoplexFFI`, which triggers registration.
 
-The existing `Soplex.solveVerified` is unchanged: it still calls
+The existing `LP.solveVerified` is unchanged: it still calls
 `SoplexFFI.solveExact` synchronously and returns `Except`. That is
 the source-level compatibility surface for current callers
-(`Examples/Quickstart.lean`, `SoplexTest/*`, the benchmarks).
+(`Examples/Quickstart.lean`, `LPTest/*`, the benchmarks).
 
 ## What is deliberately *not* in this PR
 
@@ -34,7 +34,7 @@ the source-level compatibility surface for current callers
   with one `moreLinkArgs`. Splitting requires moving the data
   vocabulary out of `SoplexFFI.Types`, which lives in a separate
   repo and is a multi-step migration.
-* **Tactic backend selection.** `Soplex.Tactic.LP` still calls
+* **Tactic backend selection.** `LP.Tactic.LP` still calls
   `solveExact` directly. Threading an `LPBackend` through every
   call site (and adding the `lp (backend := ...)` syntax, the
   `lp.backend` option, and the `availableBackends` fallback)
@@ -77,7 +77,7 @@ Reserved priority bands (lower runs first):
 
 ## Adding a new backend (once the package split happens)
 
-1. Create the backend module (`Soplex.Backend.Foo`).
+1. Create the backend module (`LP.Backend.Foo`).
 2. Define `def backend : LPBackend := { name := "foo", … }`.
 3. Self-register: `initialize registerBackend backend`.
 4. Pick a priority band; if in doubt, `1000` (experimental).

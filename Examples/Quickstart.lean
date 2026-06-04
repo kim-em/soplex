@@ -1,5 +1,5 @@
-import Soplex
-open Soplex Soplex.Verify
+import LP
+open LP LP.Verify
 
 /--
   maximize  3 x₀ + 5 x₁
