@@ -16,11 +16,13 @@
   not call any solver, since by construction there is no backend
   registered in this build. -/
 
-import LPCore
-import LPVerify
-import LPTactic
+module
 
-open LP LP
+public import LPCore
+public import LPVerify
+public import LPTactic
+
+open LP
 
 /-- The empty 0×0 LP: trivially feasible, trivially optimal at the
     empty assignment. Lets us name a `Problem` value to keep the
