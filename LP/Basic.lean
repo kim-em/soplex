@@ -12,7 +12,10 @@
   `LP.solveVerified`, `LP.solveExact`, etc. keep working
   unchanged.
 -/
+module
 
-import LPTactic.Basic
-import LPBackendSoplexFFI
-import SoplexFFI.Basic
+public import LPTactic.Basic
+public import LPBackendSoplexFFI
+public import SoplexFFI.Basic
+
+@[expose] public section

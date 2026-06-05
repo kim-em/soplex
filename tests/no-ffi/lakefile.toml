@@ -14,17 +14,17 @@ defaultTargets = ["NoFFITest"]
 [[require]]
 name = "LPCore"
 git = "https://github.com/leanprover/lp-core"
-rev = "60fca2313ea3be14f578258dc6390f2fa07b26e7"
+rev = "54ab1470e0a7c9b6fa3cfd676500db361560db43"
 
 [[require]]
 name = "LPVerify"
 git = "https://github.com/leanprover/lp-verify"
-rev = "3726846a10bb875d133a52a2c4b137da2806e22e"
+rev = "0240406c48fb5e0f24dc6b9da819048ce08a1003"
 
 [[require]]
 name = "LPTactic"
 git = "https://github.com/leanprover/lp-tactic"
-rev = "6190fbde9547d314157da5badcbf77493bd4e454"
+rev = "1ae6c2912967f7841f3fd0d9a5d6a73e079b9e0c"
 
 [[lean_lib]]
 name = "NoFFITest"

@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPTactic.LP.Problem` (`leanprover/lp-tactic`).
 -/
+module
 
-import LPTactic.LP.Problem
+public meta import LPTactic.LP.Problem
+
+@[expose] public section

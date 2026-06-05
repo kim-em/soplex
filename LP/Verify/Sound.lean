@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPVerify.Sound` (`leanprover/lp-verify`).
 -/
+module
 
-import LPVerify.Sound
+public import LPVerify.Sound
+
+@[expose] public section

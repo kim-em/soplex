@@ -12,6 +12,9 @@
   `LP.resolveBackend` / `LP.availableBackends` keeps
   working unchanged.
 -/
+module
 
-import LPCore.Backend
-import LPTactic.Registry
+public import LPCore.Backend
+public import LPTactic.Registry
+
+@[expose] public section

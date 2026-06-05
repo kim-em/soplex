@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPTactic.LP.Forall` (`leanprover/lp-tactic`).
 -/
+module
 
-import LPTactic.LP.Forall
+public meta import LPTactic.LP.Forall
+
+@[expose] public section

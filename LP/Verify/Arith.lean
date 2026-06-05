@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPVerify.Arith` (`leanprover/lp-verify`).
 -/
+module
 
-import LPVerify.Arith
+public import LPVerify.Arith
+
+@[expose] public section

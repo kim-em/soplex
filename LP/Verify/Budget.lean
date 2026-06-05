@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPVerify.Budget` (`leanprover/lp-verify`).
 -/
+module
 
-import LPVerify.Budget
+public import LPVerify.Budget
+
+@[expose] public section

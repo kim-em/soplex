@@ -1,5 +1,8 @@
 /-
   Compatibility re-export of `LPTactic.LP.Maximize` (`leanprover/lp-tactic`).
 -/
+module
 
-import LPTactic.LP.Maximize
+public meta import LPTactic.LP.Maximize
+
+@[expose] public section
