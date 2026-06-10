@@ -19,6 +19,18 @@ jobs:
       - uses: actions/checkout@v4
       - run: python3 scripts/check-pins.py --locked
 
+  # PR/push: the SoplexFFI runtime link-args block is hand-mirrored in
+  # lp-backend-soplex-ffi's lakefile; this compares the shared defs
+  # against the backend lakefile at our pinned SHA (immutable content,
+  # so deterministic despite the fetch). Hard-fails on drift; see
+  # https://github.com/leanprover/lp/issues/166.
+  link-args-sync:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-link-args-sync.py
+
   # Weekly + manual: drift REPORT against upstream mains. Never fails —
   # exact-SHA pins lag upstream by design between releases.
   drift:
