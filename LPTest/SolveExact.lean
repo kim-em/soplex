@@ -129,6 +129,41 @@ private def tMaximize (_ : Unit) : Outcome :=
         s!"bad max cert: obj={repr obj}, x={repr x}, d={repr d}"
     | _, _, _, _ => .fail s!"unexpected solution: {repr s}"
 
+/-- Nonzero `objOffset`: `Solution.objective` must include the constant
+    (lp-core's documented contract). `min x + y + 3/2  s.t.  x + y = 1`
+    has optimum `5/2`, not the bare `c·x = 1`. -/
+private def tOffsetObjective (_ : Unit) : Outcome :=
+  let p := mkProblem 2 1
+    (c := #[1, 1])
+    (a := #[(0, 0, 1), (0, 1, 1)])
+    (rowBounds := #[(some 1, some 1)])
+    (colBounds := #[(some 0, none), (some 0, none)])
+    (objOffset := 3/2)
+  solveChecked noPresolve p fun p' s =>
+    match s.status, s.certificate.primal, s.certificate.dual, s.objective with
+    | .optimal, some x, some d, some obj =>
+      expect (obj == 5/2 && checkOptimal p' x d)
+        s!"bad offset objective: obj={repr obj}, x={repr x}, d={repr d}"
+    | _, _, _, _ => .fail s!"unexpected solution: {repr s}"
+
+/-- Nonzero `objOffset` under `.maximize`: canonicalization negates both
+    `c` and the offset, so this pins the sign bookkeeping end to end.
+    `max x − 2  s.t.  x ≤ 1` has optimum `−1`. -/
+private def tOffsetMaximize (_ : Unit) : Outcome :=
+  let p := mkProblem 1 1
+    (c := #[1])
+    (a := #[(0, 0, 1)])
+    (rowBounds := #[(none, some 1)])
+    (colBounds := #[(some 0, none)])
+    (objOffset := -2)
+  let opts := { noPresolve with sense := .maximize }
+  solveChecked opts p fun p' s =>
+    match s.status, s.certificate.primal, s.certificate.dual, s.objective with
+    | .optimal, some x, some d, some obj =>
+      expect (obj == -1 && x.toArray == #[1] && checkOptimal p' x d)
+        s!"bad max offset cert: obj={repr obj}, x={repr x}, d={repr d}"
+    | _, _, _, _ => .fail s!"unexpected solution: {repr s}"
+
 def allTests : Array TestCase := #[
   .ofPure "optimal equality" tOptimalEquality,
   .ofPure "optimal ranged row" tRangedRow,
@@ -137,6 +172,8 @@ def allTests : Array TestCase := #[
   .ofPure "unbounded" tUnbounded,
   .ofPure "duplicate sparse entries and big rationals" tDuplicateAndBigRat,
   .ofPure "maximization canonicalization" tMaximize,
+  .ofPure "nonzero objOffset in objective" tOffsetObjective,
+  .ofPure "nonzero objOffset under maximize" tOffsetMaximize,
   .ofPure "verbose log captured" tVerboseLogCaptured,
   .ofPure "non-verbose log empty" tNonVerboseLogEmpty
 ]
