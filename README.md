@@ -177,20 +177,19 @@ probe succeeds wins:
   (priority 10, the default). Production-grade native binding to the vendored
   SoPlex build; what `import LP` resolves to.
 - **[`leanprover/lp-backend-soplex-json`](https://github.com/leanprover/lp-backend-soplex-json)**
-  (priority 50, scaffold). Will drive an externally-installed `soplex` binary on
-  `$PATH` through a JSON stdio protocol; the wire format is documented in the
-  repository's `docs/json-contract.md`, but the encoder/decoder is not yet
-  implemented — registering the package today gets the probe and the registry
-  slot, not a working solver. Aimed at the "I've already got `brew install
-  soplex`, don't rebuild it" case.
+  (priority 50, experimental). Drives an external binary through a JSON stdio
+  protocol (`docs/json-contract.md` in that repository is the wire spec, and the
+  Lean-side encoder/decoder is implemented and tested). The binary must *speak
+  the contract* — a stock `brew install soplex` binary does not; point
+  `LP_BACKEND_SOPLEX_JSON_BIN` at a contract-speaking wrapper (a Python harness
+  driving HiGHS, a Rust shim around SoPlex, …) and it becomes a drop-in `by lp`
+  backend.
 - **[`leanprover/lp-backend-pure`](https://github.com/leanprover/lp-backend-pure)**
-  (priority 100, scaffold). Reserves the registry slot for a pure-Lean LP solver
-  with zero native deps and zero subprocess calls. The simplex implementation
-  has not landed yet, so registering the package today returns a structured
-  "simplex not implemented" error from `solveExact`. When it does land, expect
-  it to be slow on anything beyond toy LPs (exact-rational simplex pays for the
-  verifier's exact-rational input contract); the point is zero-install CI lanes
-  and demos.
+  (priority 100). A pure-Lean two-phase tableau simplex on exact rationals —
+  zero native deps, zero subprocess calls; `by lp` works in a fresh container
+  with only Lean installed. Expect it to be slow beyond toy LPs (exact-rational
+  simplex pays for the verifier's exact-rational input contract); the point is
+  zero-install CI lanes and demos. Use the FFI backend for production solves.
 
 See [`leanprover/lp-tactic`](https://github.com/leanprover/lp-tactic) for the
 registry surface (`registerBackend`, `resolveBackend`, `availableBackends`).
@@ -214,6 +213,19 @@ MPS / LP file I/O in one import. The actual work lives in its dependencies:
   driver.
 - **[`leanprover/soplex-ffi`](https://github.com/leanprover/soplex-ffi)** — the
   vendored SoPlex build, the C++ FFI wrapper, and the direct Lean bindings.
+
+For reference, the name of each piece in its three guises:
+
+| Repository | Lake package | Top-level import | Primary namespace |
+|---|---|---|---|
+| `lp` | `LP` | `LP` | `LP` |
+| `lp-core` | `LPCore` | `LPCore` | `LP` |
+| `lp-verify` | `LPVerify` | `LPVerify` | `LP.Verify` |
+| `lp-tactic` | `LPTactic` | `LPTactic` | `LP` / `LP.Tactic.LP` |
+| `lp-backend-soplex-ffi` | `LPBackendSoplexFFI` | `LPBackendSoplexFFI` | `LP.Backend.SoplexFFI` |
+| `lp-backend-soplex-json` | `LPBackendSoplexJSON` | `LPBackendSoplexJSON` | `LP.Backend.SoplexJSON` |
+| `lp-backend-pure` | `LPBackendPure` | `LPBackendPure` | `LP.Backend.Pure` |
+| `soplex-ffi` | `SoplexFFI` | `SoplexFFI` | `LP` |
 
 ## Benchmarks
 
@@ -241,7 +253,7 @@ Clone and build through Lake:
 
 ```bash
 git clone https://github.com/leanprover/lp
-cd soplex
+cd lp
 lake exe quickstart-example
 lake test
 ```
@@ -321,11 +333,14 @@ docs/accessors.md             # row-sense × column-status accessor reference
 docs/backend-abstraction.md   # backend split and registry notes
 docs/verification.md          # detailed verified-solve trust model
 docs/lp-proof-construction.md # `lp` tactic proof construction notes
-lakefile.lean                 # depends on `SoplexFFI`
+lakefile.lean                 # pins the lp sub-packages + `SoplexFFI`
 scripts/install-toolchain.sh  # elan + GitHub-fallback toolchain installer
 scripts/install-sanitizer-runtime.sh
                               # CI sanitizer runtime installer
+scripts/check-pins.py         # pin/manifest consistency + drift report
 .github/workflows/ci.yml      # Linux + macOS + Windows CI matrix
+.github/workflows/check-pins.yml
+                              # pin consistency on PRs; weekly drift report
 ```
 
 ## Licence

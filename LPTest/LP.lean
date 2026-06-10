@@ -73,16 +73,20 @@ example (x y : Rat) (_h : x * y ≤ 1) : True := by
   fail_if_success (have : x ≤ 1 := by lp)
   trivial
 
+-- Strict hypotheses are relaxed to their non-strict weakenings
+-- (leanprover/lp-tactic#8), so `x < 1` certifies `x ≤ 1`.
 example (x : Rat) (_h : x < 1) : True := by
-  fail_if_success (have : x ≤ 1 := by lp)
+  have : x ≤ 1 := by lp
   trivial
 
 example (x : Rat) (_h : 1 > x) : True := by
-  fail_if_success (have : x ≤ 1 := by lp)
+  have : x ≤ 1 := by lp
   trivial
 
+-- Opaque non-affine subterms are atomized as LP variables
+-- (leanprover/lp-tactic#14), so reflexive goals over them close.
 example (_c _x : Rat) : True := by
-  fail_if_success (have : _c * _x ≤ _c * _x := by lp)
+  have : _c * _x ≤ _c * _x := by lp
   trivial
 
 -- Inconsistent hypotheses → `Verified.infeasible` branch closes any
@@ -95,16 +99,14 @@ example (x : Rat) (_h₁ : x ≤ 0) (_h₂ : 1 ≤ x) : x = 5 := by lp
 #guard_msgs in
 example (x : Rat) : x ≤ 0 := by lp
 
--- Division → rejected at the linear-expression extractor with a
--- targeted message.
-/-- error: lp: division is outside the supported affine grammar -/
-#guard_msgs in
+-- Division by a constant is rewritten into a scalar multiple
+-- (leanprover/lp-tactic#9), so `x / 2` is in the affine grammar.
 example (x : Rat) (_h : x / 2 ≤ 1) : x ≤ 2 := by lp
 
--- Opaque function application → rejected at the linear-expression
--- extractor's catchall.
+-- Opaque function applications are atomized as LP variables
+-- (leanprover/lp-tactic#14), so the hypothesis transfers directly.
 example (f : Rat → Rat) (x : Rat) (_h : f x ≤ 1) : True := by
-  fail_if_success (have : f x ≤ 1 := by lp)
+  have : f x ≤ 1 := by lp
   trivial
 
 -- Locally `let`-bound scalar → unfolded by `parseScalar?` and accepted

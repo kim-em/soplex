@@ -1,16 +1,13 @@
 /-
-  Top-level entry point for the `LP` library.
+  Top-level entry point for the `LP` meta-package.
 
   Bundles the verifier, the `lp` tactic, and the SoPlex FFI backend
-  under a single `import LP` so existing callers see no change.
-  The backend registry (defined in `LP.Core`) is populated as a
-  side effect of importing `LP.Backend.SoplexFFI`, which runs its
-  `initialize` block at module-load time.
-
-  Tracked migration: this repo will eventually be split into
-  `lp-core`, `lp-verify`, `lp-tactic`, and per-backend packages; see
-  https://github.com/leanprover/lp/issues/50 for the design. Until
-  then this meta-import is the seam.
+  under a single `import LP`. The heavy lifting lives in the split
+  packages (`lp-core`, `lp-verify`, `lp-tactic`, `soplex-ffi`,
+  `lp-backend-soplex-ffi`); this package pins a coherent set and
+  re-exports the convenient surface. The backend registry is
+  populated as a side effect of importing `LP.Backend.SoplexFFI`,
+  which runs its `initialize` block at module-load time.
 -/
 module
 

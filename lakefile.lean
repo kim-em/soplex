@@ -7,15 +7,15 @@ open System Lake DSL
   This package builds the high-level verified API on top of it.
 -/
 
-require LPCore from git "https://github.com/leanprover/lp-core" @ "54ab1470e0a7c9b6fa3cfd676500db361560db43"
+require LPCore from git "https://github.com/leanprover/lp-core" @ "96d003f40ada9c730ae9fe100716214273be651b"
 
-require LPVerify from git "https://github.com/leanprover/lp-verify" @ "0240406c48fb5e0f24dc6b9da819048ce08a1003"
+require LPVerify from git "https://github.com/leanprover/lp-verify" @ "3c49af332e3efcbd43766bcedbf9e549c8763752"
 
-require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "1ae6c2912967f7841f3fd0d9a5d6a73e079b9e0c"
+require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "008252423f29f152cdd3bc4224897dadfab23be7"
 
-require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "38558d98667898d810cd498cf982e70847cad1cb"
+require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "779c4562f21cea68c4d553d3040f9d50cf7f8fa7"
 
-require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "cbd7e1e65d7d2877705127d6835bbf459dd822a9"
+require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "18a2f366482fcb4f3c6418f60f1558493c5148a8"
 
 def sanitizerEnabled : Bool :=
   match get_config? sanitize with
