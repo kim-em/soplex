@@ -41,6 +41,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 BACKEND_PACKAGE = "LPBackendSoplexFFI"
 
+# The raw fetch is built from this hardcoded owner/repo (never from the
+# URL text in lakefile.lean), so a PR editing the require URL cannot
+# point CI's fetch at an arbitrary host.
+BACKEND_REPO = "leanprover/lp-backend-soplex-ffi"
+
 SHARED_DEFS = [
     "sanitizerEnabled",
     "sanitizerArgs",
@@ -48,9 +53,14 @@ SHARED_DEFS = [
     "soplexFFIRuntimeLinkArgs",
 ]
 
-# Column-0 keywords that terminate a top-level `def` body.
+# Column-0 syntax that terminates a top-level `def` body. The shared
+# defs must stay plain top-level `def`s (no `private` etc. modifiers);
+# a def this script cannot find is reported as missing, which fails CI
+# rather than silently passing.
 TOP_LEVEL = re.compile(
-    r"^(def|package|require|import|open|@\[|lean_lib|lean_exe|extern_lib)\b|^@\[")
+    r"^(def|abbrev|theorem|instance|attribute|namespace|section|end"
+    r"|set_option|run_cmd|package|require|import|open"
+    r"|lean_lib|lean_exe|extern_lib)\b|^[@#]")
 
 
 def strip_comments(text):
@@ -103,9 +113,42 @@ def strip_comments(text):
     return "".join(out)
 
 
+def normalize(code):
+    """Collapse whitespace runs outside string literals to a single
+    space; whitespace inside string literals is significant and kept."""
+    out = []
+    i, n = 0, len(code)
+    in_string = False
+    while i < n:
+        c = code[i]
+        if in_string:
+            out.append(c)
+            if c == "\\" and i + 1 < n:
+                out.append(code[i + 1])
+                i += 2
+                continue
+            if c == '"':
+                in_string = False
+            i += 1
+            continue
+        if c == '"':
+            in_string = True
+            out.append(c)
+            i += 1
+            continue
+        if c.isspace():
+            while i < n and code[i].isspace():
+                i += 1
+            out.append(" ")
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out).strip()
+
+
 def extract_defs(text, names):
     """Map name -> normalized body for each top-level `def <name>` found
-    in comment-stripped `text`. Normalization collapses all whitespace."""
+    in comment-stripped `text`."""
     stripped = strip_comments(text)
     lines = stripped.split("\n")
     found = {}
@@ -118,7 +161,7 @@ def extract_defs(text, names):
             while j < len(lines) and not TOP_LEVEL.match(lines[j]):
                 body.append(lines[j])
                 j += 1
-            found[m[1]] = " ".join(" ".join(body).split())
+            found[m[1]] = normalize("\n".join(body))
             i = j
         else:
             i += 1
@@ -126,22 +169,26 @@ def extract_defs(text, names):
 
 
 def backend_pin():
-    text = (ROOT / "lakefile.lean").read_text()
+    text = strip_comments((ROOT / "lakefile.lean").read_text())
     pat = re.compile(
-        r'require\s+' + BACKEND_PACKAGE +
-        r'\s+from\s+git\s+"([^"]+)"\s+@\s+"([0-9a-f]{40})"')
+        r'^\s*require\s+' + BACKEND_PACKAGE +
+        r'\s+from\s+git\s+"([^"]+)"\s+@\s+"([0-9a-f]{40})"', re.MULTILINE)
     m = pat.search(text)
     if not m:
         sys.exit(f"check-link-args-sync: no {BACKEND_PACKAGE} pin "
                  "found in lakefile.lean")
-    return m[1], m[2]
+    url, sha = m[1], m[2]
+    expected = f"https://github.com/{BACKEND_REPO}"
+    if url.removesuffix(".git") != expected:
+        sys.exit(f"check-link-args-sync: {BACKEND_PACKAGE} pin URL is "
+                 f"{url}, expected {expected}")
+    return sha
 
 
 def fetch_backend_lakefile():
-    url, sha = backend_pin()
-    raw = url.replace("https://github.com/",
-                      "https://raw.githubusercontent.com/")
-    full = f"{raw}/{sha}/lakefile.lean"
+    sha = backend_pin()
+    full = (f"https://raw.githubusercontent.com/{BACKEND_REPO}/"
+            f"{sha}/lakefile.lean")
     print(f"check-link-args-sync: fetching {full}")
     with urllib.request.urlopen(full, timeout=60) as r:
         return r.read().decode()
