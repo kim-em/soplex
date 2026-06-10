@@ -17,6 +17,17 @@ require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-so
 
 require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "18a2f366482fcb4f3c6418f60f1558493c5148a8"
 
+/-! ## SoplexFFI runtime link arguments
+
+This block (`sanitizerEnabled`, `sanitizerArgs`, `leanLibDirArgs`,
+`soplexFFIRuntimeLinkArgs`) is hand-mirrored in
+`lp-backend-soplex-ffi`'s lakefile: Lake offers no way to share
+config-eval-time values across packages. Any change here must be made
+there too. `scripts/check-link-args-sync.py` (run by the `check-pins`
+workflow) fails CI when the copies drift; see
+https://github.com/leanprover/lp/issues/166. `soplexFFIRoot` is the
+one definition that legitimately differs between the two copies. -/
+
 def sanitizerEnabled : Bool :=
   match get_config? sanitize with
   | some s => s != "0" && s != "false"
