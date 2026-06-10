@@ -1,0 +1,29 @@
+name: check-pins
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  # PR/push: hard-fail only on internal inconsistency (lakefile pins
+  # vs. resolved manifests, including nested test projects).
+  locked:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-pins.py --locked
+
+  # Weekly + manual: drift REPORT against upstream mains. Never fails —
+  # exact-SHA pins lag upstream by design between releases.
+  drift:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-pins.py --drift | tee -a "$GITHUB_STEP_SUMMARY"
