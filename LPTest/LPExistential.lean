@@ -2,7 +2,9 @@ import LP
 
 /-!
 `lp` tactic probes for closed existential goals over `Rat`, with flat
-conjunctions of non-strict (in)equality constraints as bodies.
+conjunctions of atomic (in)equality constraints (strict `<` included) as
+bodies. A strict conjunct is satisfied strictly at the witness by a
+slack-margin LP (lp-tactic #32).
 -/
 
 example : ∃ x : Rat, 0 ≤ x ∧ x ≤ 1 := by lp
@@ -49,10 +51,16 @@ example (x : Rat) (_h : 0 ≤ x) : True := by
   fail_if_success (have : ∃ y : Rat, y = y + 1 := by lp)
   trivial
 
--- Strict inequalities in the body are explicitly out of scope.
-example : True := by
-  fail_if_success (have : ∃ x : Rat, x < 1 := by lp)
-  trivial
+-- Strict inequalities in the body are supported: the witness LP maximizes
+-- a slack margin so the returned rational point clears each strict bound,
+-- and the spliced witness closes the strict atom by numeral comparison.
+example : ∃ x : Rat, x < 1 := by lp
+example : ∃ x : Rat, 0 < x ∧ x < 1 := by lp
+example : ∃ x : Rat, 1 < x ∧ x < 2 := by lp
+example : ∃ x y : Rat, 0 < x ∧ x < y ∧ y < 1 := by lp
+-- Mixed strict and non-strict / equality conjuncts.
+example : ∃ x : Rat, 0 < x ∧ x ≤ 5 := by lp
+example : ∃ x : Rat, x = 3 ∧ 0 < x := by lp
 
 -- Nested universal in the body without any guards is not in this fragment.
 example : True := by

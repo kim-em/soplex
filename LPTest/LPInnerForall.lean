@@ -6,6 +6,12 @@ import LP
 not depend on the outer existential witness. Each universal is
 eliminated by a sup-LP that bounds `β(y)` over the guard region; the
 resulting `α(x) + γ + M ≤ 0` constraint joins the witness LP.
+
+Strict (`<`) guards and strict universal bodies are supported on this
+x-independent path (lp-tactic #32): a strict guard relaxes to its closure
+for the sup-LP, a strict body marks its residual row strict so the witness
+LP places `x*` strictly inside, and each `∀ y, G(x*, y) → atomic(x*, y)`
+is re-proved post-splice by the top-level strict-aware Farkas assembly.
 -/
 
 -- Disjoint regions, two LP calls.
@@ -63,12 +69,29 @@ example : True := by
   fail_if_success (have : ∃ x : Rat, (1 : Rat) ≤ 0 → x = 0 := by lp)
   trivial
 
--- Strict universal guard: rejected with targeted error.
+-- Strict universal guard, x-independent: now supported. The guard
+-- `0 ≤ y → y < 1` bounds `y` strictly below `1`; the strict body
+-- `y < x + 1` is satisfied at `x = 1` (re-proved post-splice from the
+-- strict guard).
+example : ∃ x : Rat, 0 ≤ x ∧ ∀ y : Rat, 0 ≤ y → y < 1 → y < x + 1 := by lp
+
+-- Strict universal body with a non-strict guard region: the strict
+-- residual pushes the witness strictly past the sup.
+example : ∃ x : Rat, ∀ y : Rat, 0 ≤ y → y ≤ 1 → y < x + 1 := by lp
+
+-- Strict guard, non-strict body.
+example : ∃ x : Rat, 0 ≤ x ∧ ∀ y : Rat, 0 ≤ y → y < 1 → y ≤ x + 1 := by lp
+
+-- A strict guard whose region is still unbounded above leaves the sup-LP
+-- unbounded, so the universal is genuinely unsatisfiable and `lp` fails —
+-- not because strictness is rejected, but because no finite `x` bounds
+-- every `y > 0`.
 example : True := by
   fail_if_success (have : ∃ x : Rat, ∀ y : Rat, 0 < y → y ≤ x := by lp)
   trivial
 
--- Strict universal body: rejected with targeted error.
+-- Likewise a strict body over an unbounded guard region: `y` ranges over
+-- all of `[0, ∞)`, so no `x` satisfies `y < x` for every nonneg `y`.
 example : True := by
   fail_if_success (have : ∃ x : Rat, ∀ y : Rat, 0 ≤ y → y < x := by lp)
   trivial
