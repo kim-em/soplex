@@ -24,7 +24,7 @@ rev = "b29f8d3dc3ff315dc089cbae9a4ca48612a25752"
 [[require]]
 name = "LPTactic"
 git = "https://github.com/leanprover/lp-tactic"
-rev = "7b439144d8747a183ab4dfbaf638e09629f655d4"
+rev = "c535b70255f4ba6b9a6d93da82420978f931586e"
 
 [[lean_lib]]
 name = "NoFFITest"
