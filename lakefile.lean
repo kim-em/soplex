@@ -13,9 +13,27 @@ require LPVerify from git "https://github.com/leanprover/lp-verify" @ "3c49af332
 
 require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "008252423f29f152cdd3bc4224897dadfab23be7"
 
-require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "90077fb4c583c09120965c3c1bdb9cb6d9278c05"
+/-- Forward this workspace's `-KleanLibDir=…` flag into transitive deps that
+    read `get_config? leanLibDir` themselves. `-K` flags only populate the
+    root package's opts, so without this `require ... with` plumbing
+    `SoplexFFI` and `LPBackendSoplexFFI` see `none` when their lakefiles
+    consult the option, and their `soplexRuntimeLinkArgs` /
+    `soplexFFIRuntimeLinkArgs` produce an empty `leanLibDirArgs`. On Linux
+    that means the toolchain's PIC `libgmp.a` is not on the `-L` path
+    before `-l:libgmp.a` (introduced for the in-elaborator GMP-binding fix
+    in https://github.com/leanprover/soplex-ffi/pull/19), so the link picks
+    up Ubuntu's non-PIC archive and fails with `R_X86_64_PC32` against
+    `stderr`. -/
+def forwardedDepOpts : Lean.NameMap String :=
+  match get_config? leanLibDir with
+  | some d => Lean.NameMap.empty.insert `leanLibDir d
+  | none => Lean.NameMap.empty
 
-require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "31f091e4c294058a09d2536eef836939edc36776"
+require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "90077fb4c583c09120965c3c1bdb9cb6d9278c05" with
+  forwardedDepOpts
+
+require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "80ae17fbbee7375b2a3c21ce7999caba5abdac02" with
+  forwardedDepOpts
 
 /-! ## SoplexFFI runtime link arguments
 

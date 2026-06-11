@@ -42,7 +42,15 @@ jobs:
           ./scripts/install-toolchain.sh
 
       - name: Build Lean targets
-        run: lake build LP LPTacticTest ffi-check quickstart-example
+        # `-KleanLibDir=...` is forwarded into `SoplexFFI` and
+        # `LPBackendSoplexFFI`'s opts via `require ... with forwardedDepOpts`
+        # in this lakefile, so their `get_config? leanLibDir` resolves to the
+        # toolchain prefix when their `soplexRuntimeLinkArgs` /
+        # `soplexFFIRuntimeLinkArgs` run. That places `-L<toolchain lib>`
+        # ahead of `-L/usr/lib*` and lets `-l:libgmp.a` (the in-elaborator
+        # GMP-binding fix in leanprover/soplex-ffi#19) pick up the PIC
+        # toolchain archive instead of Ubuntu's non-PIC one.
+        run: lake build "-KleanLibDir=$(lean --print-prefix)/lib" LP LPTacticTest ffi-check quickstart-example
 
       - name: Run ffi-check executable
         run: |
@@ -59,10 +67,10 @@ jobs:
           echo "$out" | grep -Fqx 'optimal x = #[2, 6]'
 
       - name: lake test
-        run: lake test
+        run: lake test "-KleanLibDir=$(lean --print-prefix)/lib"
 
       - name: Downstream-package smoke test
-        run: lake build
+        run: lake build "-KleanLibDir=$(lean --print-prefix)/lib"
         working-directory: tests/downstream
 
   no-ffi:
