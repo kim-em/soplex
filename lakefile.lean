@@ -13,9 +13,9 @@ require LPVerify from git "https://github.com/leanprover/lp-verify" @ "3c49af332
 
 require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "008252423f29f152cdd3bc4224897dadfab23be7"
 
-require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "779c4562f21cea68c4d553d3040f9d50cf7f8fa7"
+require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "90077fb4c583c09120965c3c1bdb9cb6d9278c05"
 
-require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "18a2f366482fcb4f3c6418f60f1558493c5148a8"
+require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "31f091e4c294058a09d2536eef836939edc36776"
 
 /-! ## SoplexFFI runtime link arguments
 
@@ -56,14 +56,26 @@ def soplexFFIRuntimeLinkArgs : Array String :=
     #[]
   else if System.Platform.isWindows then
     let mingwLibDir := soplexFFIRoot / "vendor" / "mingw-libs"
+    -- The Lean toolchain's `crt2.o` references `_gnu_exception_handler` and
+    -- `__mingw_oldexcpt_handler` — mingw-w64 CRT compatibility symbols that
+    -- recent MSYS2 packages (mid-2026) stopped exporting from `libmingw32.a`,
+    -- so `ld.lld` reports them as undefined when linking any Lean executable
+    -- on Windows. `SoplexFFI`'s `stageMingwLibs` compiles a tiny pass-through
+    -- stub (`mingw_crt_handler_stub.o`) next to the staged MSYS2 archives;
+    -- naming it here resolves the link. See
+    -- https://github.com/leanprover/lp/issues/170.
     #["-Wl,--allow-multiple-definition",
+      s!"-L{mingwLibDir}",
+      (mingwLibDir / "mingw_crt_handler_stub.o").toString,
+      "-Wl,--start-group",
       (mingwLibDir / "libstdc++.a").toString,
       (mingwLibDir / "libgmpxx.a").toString,
       (mingwLibDir / "libgmp.a").toString,
-      s!"-L{mingwLibDir}",
+      "-lmingw32",
       "-lgcc_s",
       "-lmingwex",
-      "-lmsvcrt"]
+      "-lmsvcrt",
+      "-Wl,--end-group"]
   else if sanitizerEnabled then
     -- Sanitizer lane: the ASan runtime link needs `-lresolv` etc. from the
     -- `-L/usr/lib*` dirs, but those dirs also hold Ubuntu's `libc++.so` and would
