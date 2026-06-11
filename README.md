@@ -178,12 +178,12 @@ probe succeeds wins:
   SoPlex build; what `import LP` resolves to.
 - **[`leanprover/lp-backend-soplex-json`](https://github.com/leanprover/lp-backend-soplex-json)**
   (priority 50, experimental). Drives an external binary through a JSON stdio
-  protocol (`docs/json-contract.md` in that repository is the wire spec, and the
-  Lean-side encoder/decoder is implemented and tested). The binary must *speak
-  the contract* — a stock `brew install soplex` binary does not; point
-  `LP_BACKEND_SOPLEX_JSON_BIN` at a contract-speaking wrapper (a Python harness
-  driving HiGHS, a Rust shim around SoPlex, …) and it becomes a drop-in `by lp`
-  backend.
+  protocol (`docs/json-contract.md` in that repository is the wire spec). It
+  ships a wrapper (`scripts/soplex-json-wrapper.py`) that drives a stock
+  `soplex` CLI in exact-rational mode, so `brew install soplex` +
+  `import LPBackendSoplexJSON` is a working `by lp` with no further setup.
+  Point `LP_BACKEND_SOPLEX_JSON_BIN` at a different contract-speaking wrapper
+  (a Python harness driving HiGHS, a Rust shim around SoPlex, …) to override.
 - **[`leanprover/lp-backend-pure`](https://github.com/leanprover/lp-backend-pure)**
   (priority 100). A pure-Lean two-phase tableau simplex on exact rationals —
   zero native deps, zero subprocess calls; `by lp` works in a fresh container
