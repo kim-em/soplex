@@ -111,10 +111,12 @@ example : ∃ x : Rat, 0 ≤ x ∧ x ≤ 3 ∧
     ∀ y : Rat, x ≤ y → y ≤ 5 → y ≤ 2 * x := by lp
 ```
 
-Hypotheses that are not non-strict `Rat`-affine are silently ignored
-(strict hypotheses are rejected with a tactic-level diagnostic). When
-SoPlex returns infeasible, `lp` derives `False` from the dual and
-closes any goal.
+Strict and non-strict `Rat`-affine hypotheses both participate
+(strictness is tracked through a strict-aware Farkas certificate, so
+e.g. `a < b, b ≤ a ⊢ False` closes); opaque non-affine subterms are
+atomized as fresh LP variables, and anything still outside the
+fragment is silently ignored. When SoPlex returns infeasible, `lp`
+derives `False` from the dual and closes any goal.
 
 `lp` handles a Π₂ fragment of linear rational arithmetic. Atoms are
 `Rat`-affine (in)equalities (`≤`, `<`, `=`, `≥`, `>`) in the
@@ -122,7 +124,7 @@ closes any goal.
 under inner `∀ y : Rat, g₁ → … → gₖ → b` whose guards `gᵢ` and body
 `b` are themselves `Rat`-affine atoms — including guards that mention
 the outer existential witness. The local context contributes
-non-strict linear `Rat` hypotheses; SoPlex serves as an untrusted
+linear `Rat` hypotheses (strict or not); SoPlex serves as an untrusted
 oracle for Farkas / dual multipliers, and the kernel proof is
 reconstructed from those multipliers and the original hypothesis
 terms.
