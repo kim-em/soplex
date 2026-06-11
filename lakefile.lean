@@ -9,11 +9,11 @@ open System Lake DSL
 
 require LPCore from git "https://github.com/leanprover/lp-core" @ "96d003f40ada9c730ae9fe100716214273be651b"
 
-require LPVerify from git "https://github.com/leanprover/lp-verify" @ "3c49af332e3efcbd43766bcedbf9e549c8763752"
+require LPVerify from git "https://github.com/leanprover/lp-verify" @ "b29f8d3dc3ff315dc089cbae9a4ca48612a25752"
 
-require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "008252423f29f152cdd3bc4224897dadfab23be7"
+require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "722ea67c6011141b36135b19e7306fa6fd055a47"
 
-require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "90077fb4c583c09120965c3c1bdb9cb6d9278c05"
+require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "917e06a10d847b74ff49dc4bc7d9d825cfa587c8"
 
 require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "be185e2be82134d5fc95efb931f194c27ca4629b"
 

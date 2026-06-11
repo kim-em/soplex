@@ -19,12 +19,12 @@ rev = "96d003f40ada9c730ae9fe100716214273be651b"
 [[require]]
 name = "LPVerify"
 git = "https://github.com/leanprover/lp-verify"
-rev = "3c49af332e3efcbd43766bcedbf9e549c8763752"
+rev = "b29f8d3dc3ff315dc089cbae9a4ca48612a25752"
 
 [[require]]
 name = "LPTactic"
 git = "https://github.com/leanprover/lp-tactic"
-rev = "008252423f29f152cdd3bc4224897dadfab23be7"
+rev = "722ea67c6011141b36135b19e7306fa6fd055a47"
 
 [[lean_lib]]
 name = "NoFFITest"
