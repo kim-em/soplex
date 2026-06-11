@@ -68,6 +68,19 @@ private def tOptimal (_ : Unit) : Outcome :=
     (colBounds := #[(some 0, none), (some 0, none)])
   runVerified noPresolve p (k := fun _ v => wantsOptimal v)
 
+/-- Nonzero `objOffset` through the verified path: `checkOptimal`
+    computes `c·x + objOffset` on both the primal and dual sides
+    itself, so the certificate must verify regardless of the offset
+    in the solver-reported objective. -/
+private def tOptimalWithOffset (_ : Unit) : Outcome :=
+  let p := mkProblem 2 1
+    (c := #[1, 1])
+    (a := #[(0, 0, 1), (0, 1, 1)])
+    (rowBounds := #[(some 1, some 1)])
+    (colBounds := #[(some 0, none), (some 0, none)])
+    (objOffset := 3/2)
+  runVerified noPresolve p (k := fun _ v => wantsOptimal v)
+
 private def tInfeasible (_ : Unit) : Outcome :=
   let p := mkProblem 1 2
     (c := #[0])
@@ -221,6 +234,7 @@ private def tNonTerminalPreservesStatus (_ : Unit) : Outcome :=
 
 def allTests : Array TestCase := #[
   .ofPure "optimal: feasibility + min proof carried"    tOptimal,
+  .ofPure "optimal with nonzero objOffset"              tOptimalWithOffset,
   .ofPure "infeasible: Farkas proof carried"            tInfeasible,
   .ofPure "unbounded: ray proof carried"                tUnbounded,
   .ofPure "maximize: IsOptimal _ .maximize transport"   tMaximize,

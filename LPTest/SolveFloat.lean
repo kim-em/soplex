@@ -102,6 +102,23 @@ private def tMaximize (_ : Unit) : Outcome :=
       expect ((obj - 2.0).abs < 1e-9) s!"bad maximize float result: obj={obj}"
     | _, _ => .fail s!"unexpected solution: {repr s}"
 
+/-- Nonzero `objOffset` in float mode: `min x + 5/2  s.t.  x ≥ 3` has
+    optimum `5.5`; the bridge adds the offset to SoPlex's `c·x`. -/
+private def tOffsetObjective (_ : Unit) : Outcome :=
+  let p := mkProblem 1 1
+    (c := #[1])
+    (a := #[(0, 0, 1)])
+    (rowBounds := #[(some 3, none)])
+    (colBounds := #[(none, none)])
+    (objOffset := 5/2)
+  match solveFloat noPresolve p with
+  | .error e => .fail s!"solveFloat failed: {repr e}"
+  | .ok s =>
+    match s.status, s.objective with
+    | .optimal, some obj =>
+      expect ((obj - 5.5).abs < 1e-9) s!"bad float offset objective: obj={obj}"
+    | _, _ => .fail s!"unexpected solution: {repr s}"
+
 /-- Verbose float-mode solves should carry the same captured SoPlex log
     contract as exact-mode solves. -/
 private def tVerboseLog (_ : Unit) : Outcome :=
@@ -126,6 +143,7 @@ def allTests : Array TestCase := #[
   .ofPure "infeasible rows" tInfeasibleRows,
   .ofPure "binary round-trip of 0.1" tBinaryRoundTrip,
   .ofPure "maximize" tMaximize,
+  .ofPure "nonzero objOffset in objective" tOffsetObjective,
   .ofPure "verbose log" tVerboseLog,
   .ofPure "oversized iterLimit rejected" tIterLimitTooLarge
 ]

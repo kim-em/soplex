@@ -15,7 +15,7 @@ require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "008252423
 
 require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "90077fb4c583c09120965c3c1bdb9cb6d9278c05"
 
-require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "31f091e4c294058a09d2536eef836939edc36776"
+require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "be185e2be82134d5fc95efb931f194c27ca4629b"
 
 /-! ## SoplexFFI runtime link arguments
 
