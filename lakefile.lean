@@ -11,9 +11,9 @@ require LPCore from git "https://github.com/leanprover/lp-core" @ "96d003f40ada9
 
 require LPVerify from git "https://github.com/leanprover/lp-verify" @ "b29f8d3dc3ff315dc089cbae9a4ca48612a25752"
 
-require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "15a109ea582487ab6cb26fb74b7685d1349f4999"
+require LPTactic from git "https://github.com/leanprover/lp-tactic" @ "0b0ca0cc98b479a1cb4c8cfe1f976efde1edcb8f"
 
-require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "a04f83ec86e097b6ccce3252e8c03ae7109d79b8"
+require LPBackendSoplexFFI from git "https://github.com/leanprover/lp-backend-soplex-ffi" @ "a1e9ac813b881aef2296ae0dbbcc74242ce527ea"
 
 require SoplexFFI from git "https://github.com/leanprover/soplex-ffi" @ "be185e2be82134d5fc95efb931f194c27ca4629b"
 
