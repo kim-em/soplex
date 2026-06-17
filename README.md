@@ -251,6 +251,12 @@ System dependencies:
 | macOS    | `brew install gmp boost cmake` (plus Xcode Command Line Tools) |
 | Windows  | MSYS2 `mingw-w64-x86_64-{gcc,cmake,ninja,make,gmp,boost}` |
 
+On Windows, build from the **MSYS2 MINGW64** shell, not Git Bash. The
+SoPlex build reads `MINGW_PREFIX` to find its static libraries; Git Bash
+points it at Git for Windows' minimal MinGW (no `libstdc++.a` etc.) and
+the build fails with `missing required MSYS2 archive`. Confirm the shell
+with `echo $MINGW_PREFIX`, which must print `/mingw64`.
+
 Clone and build through Lake:
 
 ```bash
